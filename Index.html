@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suivi prêt matériel – Gendarmerie</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.35rem, 1.05rem + 1vw, 2rem);
+      --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.25rem; --space-6:1.5rem; --space-8:2rem; --space-10:2.5rem; --space-12:3rem;
+      --color-bg:#f7f6f2; --color-surface:#f9f8f5; --color-surface-2:#fbfbf9; --color-surface-offset:#edeae5; --color-border:#d4d1ca; --color-divider:#dcd9d5;
+      --color-text:#28251d; --color-text-muted:#6f6d67; --color-text-faint:#9b9993; --color-text-inverse:#f9f8f4;
+      --color-primary:#01696f; --color-primary-hover:#0c4e54; --color-primary-highlight:#cedcd8; --color-success:#437a22; --color-warning:#964219; --color-error:#a12c7b;
+      --radius-sm:.375rem; --radius-md:.5rem; --radius-lg:.875rem; --radius-xl:1rem; --radius-full:9999px;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.06); --shadow-md:0 6px 20px rgba(0,0,0,.08);
+      --font-body:'Satoshi', system-ui, sans-serif;
+    }
+    [data-theme="dark"] {
+      --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#22211f; --color-border:#393836; --color-divider:#262523;
+      --color-text:#ece9e3; --color-text-muted:#b2aea7; --color-text-faint:#7c7974; --color-text-inverse:#171614;
+      --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-highlight:#313b3b; --color-success:#6daa45; --color-warning:#bb653b; --color-error:#d163a7;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.25); --shadow-md:0 8px 28px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{font-family:var(--font-body);font-size:var(--text-base);line-height:1.5;color:var(--color-text);background:var(--color-bg)}
+    button,input,select,textarea{font:inherit;color:inherit}
+    button{cursor:pointer;border:none}
+    input,select,textarea{background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.8rem .9rem;width:100%}
+    textarea{min-height:90px;resize:vertical}
+    .app{display:grid;grid-template-columns:280px 1fr;min-height:100dvh;overflow:hidden}
+    .sidebar{background:var(--color-surface);border-right:1px solid var(--color-divider);padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-6);overflow:auto}
+    .sidebar.mobile-open{display:flex;position:fixed;inset:0 auto 0 0;width:min(86vw,320px);z-index:30;box-shadow:var(--shadow-md)}
+    .sidebar-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:25;display:none}
+    .sidebar-backdrop.show{display:block}
+    .brand{display:flex;align-items:center;gap:.8rem}
+    .logo{width:42px;height:42px;border-radius:12px;background:var(--color-primary);color:white;display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+    .brand h1{font-size:var(--text-lg);line-height:1.1}
+    .brand p{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .nav{display:grid;gap:.5rem}
+    .nav button{text-align:left;background:transparent;border:1px solid transparent;padding:.85rem 1rem;border-radius:var(--radius-lg);font-size:var(--text-sm)}
+    .nav button.active{background:var(--color-primary-highlight);color:var(--color-primary);font-weight:700}
+    .nav button:hover{background:var(--color-surface-offset)}
+    .sidebar-card{background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);display:grid;gap:.4rem}
+    .sidebar-card strong{font-size:var(--text-sm)}
+    .sidebar-card span,.small{color:var(--color-text-muted);font-size:var(--text-xs)}
+    .main{overflow:hidden;display:flex;flex-direction:column;min-width:0}
+    .topbar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.25rem;background:color-mix(in srgb, var(--color-bg) 88%, transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--color-divider)}
+    .topbar .actions{justify-content:flex-end}
+    .page{padding:1rem;display:none;gap:1rem;min-width:0;overflow:hidden;flex:1 1 auto}
+    .page.active{display:flex;flex-direction:column}
+    .card, .flash-box, .history-item{scroll-margin-bottom:9rem}
+    dialog{max-height:min(88dvh, calc(100dvh - 1rem));overflow:hidden}
+    dialog form, dialog .modal-body{min-height:0}
+    .modal-body{padding:1rem;display:grid;gap:1rem;overflow:auto;max-height:calc(88dvh - 9rem)}
+    .modal-foot{position:sticky;bottom:0;background:var(--color-surface);padding: .85rem 1rem calc(.95rem + env(safe-area-inset-bottom));display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;border-top:1px solid var(--color-divider)}
+    .mobile-sticky-actions{position:sticky;bottom:0;z-index:4;background:color-mix(in srgb, var(--color-bg) 92%, transparent);backdrop-filter:blur(8px);padding:.75rem 0 calc(.75rem + env(safe-area-inset-bottom))}
+    .field{min-width:0}
+    input,select,textarea{font-size:16px}
+    
+    .hero{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;min-width:0}
+    .hero h2{font-size:var(--text-xl);line-height:1.05}.hero p{color:var(--color-text-muted);max-width:100%;margin-top:.45rem;overflow-wrap:anywhere;word-break:break-word}
+    .actions,.inline,.chips{display:flex;gap:.65rem;flex-wrap:wrap}
+    .btn{padding:.82rem 1rem;border-radius:var(--radius-lg);font-size:var(--text-sm);font-weight:700}
+    .btn-primary{background:var(--color-primary);color:var(--color-text-inverse)} .btn-primary:hover{background:var(--color-primary-hover)}
+    .btn-secondary{background:var(--color-surface);border:1px solid var(--color-border)}
+    .grid-3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;min-width:0}.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;min-width:0}
+    .card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:1rem;box-shadow:var(--shadow-sm);min-width:0;overflow:hidden}
+    .kpi{display:grid;gap:.35rem}.kpi span{color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.08em}.kpi strong{font-size:var(--text-xl)}
+    .toolbar{display:flex;gap:.75rem;flex-wrap:wrap;align-items:end;min-width:0}.toolbar .field{min-width:0;flex:1 1 180px}
+    label{display:block;font-size:var(--text-xs);font-weight:700;color:var(--color-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.06em}
+    .table-wrap{overflow:auto} table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums lining-nums}
+    th,td{padding:.75rem .55rem;border-bottom:1px solid var(--color-divider);text-align:left;vertical-align:top;font-size:var(--text-sm);overflow-wrap:anywhere;word-break:break-word;max-width:0}
+    th{color:var(--color-text-muted);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.06em}
+    .status{display:inline-flex;align-items:center;gap:.45rem;padding:.25rem .55rem;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700}
+    .status::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}.available{color:var(--color-success);background:color-mix(in srgb, var(--color-success) 12%, transparent)} .loaned{color:var(--color-warning);background:color-mix(in srgb, var(--color-warning) 12%, transparent)}
+    .chip{padding:.4rem .65rem;border-radius:var(--radius-full);background:var(--color-surface-offset);font-size:var(--text-xs)}
+    .search-results{position:relative}.suggestions{position:absolute;top:100%;left:0;right:0;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-md);box-shadow:var(--shadow-md);margin-top:.3rem;max-height:180px;overflow:auto;display:none;z-index:20}
+    .suggestions button{width:100%;text-align:left;padding:.75rem .85rem;background:transparent;border-bottom:1px solid var(--color-divider)} .suggestions button:last-child{border-bottom:none}.suggestions button:hover{background:var(--color-surface-offset)}
+    dialog{width:min(760px,calc(100vw - 1.5rem));border:none;border-radius:1rem;padding:0;background:var(--color-surface);color:var(--color-text);box-shadow:var(--shadow-md)} dialog::backdrop{background:rgba(0,0,0,.4)}
+    .modal-head{padding:1rem 1rem .75rem;border-bottom:1px solid var(--color-divider)}
+    .flash-box{display:grid;gap:1rem;padding:1rem;border-radius:var(--radius-lg);background:var(--color-surface-2);border:1px dashed var(--color-border)} .flash-input{display:flex;gap:.75rem;flex-wrap:wrap;min-width:0}.flash-input input{flex:1;min-width:0}
+    .history-list{display:grid;gap:.75rem}.history-item{border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:.85rem 1rem;background:var(--color-surface-2)}
+    .print-sheet{background:white;color:black;padding:12mm}.qr-sheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;align-items:stretch}.qr-item{border:1px dashed #888;padding:4mm;display:flex;align-items:center;justify-content:center;gap:3mm;min-height:34mm;break-inside:avoid;page-break-inside:avoid}.qr-item.bottom{flex-direction:column}.qr-item.right{flex-direction:row}.qr-num{font-size:12pt;font-weight:700}
+    canvas.qr-canvas{width:26mm !important;height:26mm !important;image-rendering:pixelated}
+    .notice{padding:.75rem 1rem;border-radius:var(--radius-lg);background:var(--color-primary-highlight);color:var(--color-primary);font-size:var(--text-sm);overflow-wrap:anywhere;word-break:break-word}
+    .scan-fab{position:fixed;right:1rem;bottom:1rem;z-index:40;display:none;padding:.9rem 1rem;border-radius:999px;background:var(--color-primary);color:var(--color-text-inverse);box-shadow:var(--shadow-md);font-weight:700}
+    .camera-wrap{position:relative;min-height:280px;border:1px solid var(--color-border);border-radius:var(--radius-xl);overflow:hidden;background:#000}
+    #cameraVideo{width:100%;height:100%;object-fit:cover;display:block;min-height:280px;background:#000}
+    .camera-overlay{position:absolute;inset:auto 1rem 1rem 1rem;background:rgba(0,0,0,.45);color:#fff;padding:.7rem .9rem;border-radius:.75rem;text-align:center}
+    @media (max-width:980px){.scan-fab{display:block}.topbar .actions .btn:last-child{display:none}}
+    @media (max-width:640px){.camera-wrap,#cameraVideo{min-height:220px}}
+
+    @media (max-width:980px){.app{grid-template-columns:1fr}.sidebar{display:none}.grid-3,.grid-2{grid-template-columns:1fr}.page{padding:.75rem}.topbar{padding:.7rem .75rem;align-items:flex-start}.topbar .actions{width:100%;justify-content:stretch;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}.topbar .actions .btn{width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qr-sheet-grid{grid-template-columns:repeat(2,1fr)}.toolbar{flex-direction:column;align-items:stretch}.toolbar .field{width:100%}.flash-input{flex-direction:column}.inline{flex-direction:column}.inline .btn{width:100%}dialog{width:min(100vw - .5rem, 760px);margin:auto}.modal-body{max-height:calc(100dvh - 10rem)}.modal-foot{justify-content:stretch}.modal-foot .btn{flex:1;min-height:48px}.search-results{z-index:30}.card{padding:.85rem}.table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}.table-wrap table{min-width:720px} td::before{content:attr(data-label) ": "; font-weight:700; color:var(--color-text-muted); display:none}}
+    @media (max-width:640px){.qr-sheet-grid{grid-template-columns:1fr}.hero{flex-direction:column}.hero h2{font-size:clamp(1.2rem, 5vw, 1.65rem)}.topbar .actions{grid-template-columns:1fr;gap:.45rem}.topbar .actions .btn{min-height:44px}.table-wrap table,.table-wrap thead,.table-wrap tbody,.table-wrap th,.table-wrap td,.table-wrap tr{display:block;width:100%}.table-wrap thead{display:none}.table-wrap tr{border:1px solid var(--color-divider);border-radius:.75rem;margin-bottom:.75rem;overflow:hidden;background:var(--color-surface-2)}.table-wrap td{border:none;border-bottom:1px solid var(--color-divider);display:flex;justify-content:space-between;gap:.75rem;max-width:none}.table-wrap td::before{display:block;content:attr(data-label);flex:0 0 40%;font-weight:700;color:var(--color-text-muted)}.table-wrap td:last-child{border-bottom:none}}
+    @media print{body *{visibility:hidden} #printZone,#printZone *{visibility:visible} #printZone{position:absolute;left:0;top:0;width:100%}.print-sheet{padding:0}.qr-sheet-grid{gap:4mm}.qr-item{min-height:32mm} @page{size:A4;margin:8mm}}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="logo"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="10" height="16" rx="2"></rect><path d="M14 8h6v10a2 2 0 0 1-2 2h-4"></path></svg></div>
+        <div><h1>Prêt matériel</h1><p>Unité de gendarmerie</p></div>
+      </div>
+      <nav class="nav" aria-label="Navigation principale">
+        <button class="active" data-page-target="dashboard">Tableau de bord</button>
+        <button data-page-target="scan">Scanner / prêt</button>
+        <button data-page-target="materiel">Matériels</button>
+        <button data-page-target="historique">Historique</button>
+        <button data-page-target="comptes">Comptes</button>
+        <button data-page-target="qrcodes">QR codes</button>
+        <button data-page-target="parametres">Paramètres</button>
+      </nav>
+      <div class="sidebar-card"><strong>Scan QR</strong><span>Utilisez le bouton « Scan rapide » ou la caméra pour identifier un matériel instantanément.</span></div>
+      <div class="sidebar-card"><strong>Impression</strong><span>Générez et imprimez vos planches d'étiquettes QR depuis la page « QR codes ».</span></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><div class="small">Session</div><strong id="sessionUserName">Admin unité</strong></div>
+        <div class="actions">
+          <button class="btn btn-secondary" id="mobileMenuBtn">Menu</button>
+          <button class="btn btn-secondary" id="themeBtn">Thème</button>
+          <button class="btn btn-primary" id="quickScanBtn">Scan rapide</button>
+        </div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="hero"><div><h2>Suivi simple des prêts</h2><p>Cette version corrige le front-end pour que toutes les vues soient réellement utilisables en démonstration locale.</p></div><div class="chips" id="dashboardChips"></div></div>
+        <div class="grid-3" id="kpiGrid"></div>
+        <div class="card"><div class="hero"><div><h3 style="font-size:var(--text-lg)">Prêts en cours</h3><p class="small">Retour rapide en un clic.</p></div></div><div class="table-wrap"><table><thead><tr><th>Numéro QR</th><th>Matériel</th><th>Catégorie</th><th>Emprunteur</th><th>Date prêt</th><th>Retour prévu</th><th></th></tr></thead><tbody id="dashboardLoansBody"></tbody></table></div></div>
+      </section>
+
+      <section class="page" id="page-scan">
+        <div class="hero"><div><h2>Scanner / prêter / retourner</h2><p>Saisis un numéro QR ou colle la valeur lue par un lecteur.</p></div></div>
+        <div class="card flash-box">
+          <div class="flash-input"><input id="scanInput" placeholder="Ex. GEND-000123" autocomplete="off" /><button class="btn btn-primary" id="scanButton">Vérifier</button></div>
+          <div class="inline">
+            <button class="btn btn-secondary sample-scan" data-code="GEND-000001">Tester un matériel prêté</button>
+            <button class="btn btn-secondary sample-scan" data-code="GEND-000002">Tester un matériel dispo</button>
+            <button class="btn btn-secondary sample-scan" data-code="GEND-000099">Tester un QR inconnu</button>
+          </div>
+          <div class="mobile-sticky-actions"><button class="btn btn-primary" style="width:100%" id="openCameraFromScanPage">Ouvrir la caméra</button></div>
+          <div id="scanResult" class="notice">Aucun scan en cours.</div>
+        </div>
+      </section>
+
+      <section class="page" id="page-materiel">
+        <div class="hero"><div><h2>Matériels enregistrés</h2><p>Filtre par statut, catégorie et recherche texte.</p></div></div>
+        <div class="card toolbar">
+          <div class="field"><label for="filterStatus">Statut</label><select id="filterStatus"><option value="all">Tous</option><option value="available">Non prêté</option><option value="loaned">Prêté</option></select></div>
+          <div class="field"><label for="filterCategory">Catégorie</label><select id="filterCategory"><option value="all">Toutes</option></select></div>
+          <div class="field"><label for="filterSearch">Recherche</label><input id="filterSearch" placeholder="Nom, description, QR" /></div>
+          <div class="field" style="max-width:220px"><button class="btn btn-primary" id="addMaterialBtn" style="width:100%;margin-top:1.35rem">Ajouter matériel</button></div>
+        </div>
+        <div class="card table-wrap"><table><thead><tr><th>Numéro QR</th><th>Nom</th><th>Catégorie</th><th>Description</th><th>Statut</th><th></th></tr></thead><tbody id="materialsBody"></tbody></table></div>
+      </section>
+
+      <section class="page" id="page-historique">
+        <div class="hero"><div><h2>Historique des prêts</h2><p>Consultation globale ou par utilisateur.</p></div></div>
+        <div class="card toolbar"><div class="field"><label for="historyUserFilter">Utilisateur</label><select id="historyUserFilter"><option value="all">Tous</option></select></div><div class="field"><label for="historyStateFilter">État</label><select id="historyStateFilter"><option value="all">Tous</option><option value="open">En cours</option><option value="closed">Retournés</option></select></div></div>
+        <div class="card history-list" id="historyList"></div>
+      </section>
+
+      <section class="page" id="page-comptes">
+        <div class="hero"><div><h2>Comptes du personnel</h2><p>Création simple de comptes de démonstration.</p></div></div>
+        <div class="grid-2">
+          <div class="card"><div class="history-list"><div><label>Nom complet</label><input id="accountName" placeholder="Ex. Adjudant Martin" /></div><div><label>Identifiant</label><input id="accountUsername" placeholder="amartin" /></div><div><label>Rôle</label><select id="accountRole"><option>Utilisateur</option><option>Gestionnaire</option><option>Administrateur</option></select></div><button class="btn btn-primary" id="createAccountBtn">Créer le compte</button></div></div>
+          <div class="card table-wrap"><table><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th></tr></thead><tbody id="accountsBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-qrcodes">
+        <div class="hero"><div><h2>Génération et impression des QR codes</h2><p>Cette version génère les QR sans dépendre d’une bibliothèque externe.</p></div></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="grid-2">
+              <div><label>Préfixe</label><input id="qrPrefix" value="GEND" /></div>
+              <div><label>Départ</label><input id="qrStart" type="number" value="1" min="1" /></div>
+              <div><label>Quantité</label><input id="qrCount" type="number" value="12" min="1" max="60" /></div>
+              <div><label>Placement du numéro</label><select id="qrLabelPos"><option value="bottom">Sous le QR code</option><option value="right">À droite du QR code</option></select></div>
+            </div>
+            <div class="inline" style="margin-top:1rem"><button class="btn btn-primary" id="generateQrBtn">Générer la planche</button><button class="btn btn-secondary" id="printQrBtn">Imprimer</button></div>
+          </div>
+          <div class="card"><div class="notice">Chaque QR encode un identifiant du type GEND-000001. Au premier scan, s’il n’existe pas, l’application demande l’enregistrement du matériel.</div></div>
+        </div>
+        <div class="card" id="printZone"><div class="print-sheet"><div id="qrSheet" class="qr-sheet-grid"></div></div></div>
+      </section>
+
+      <section class="page" id="page-parametres">
+        <div class="hero"><div><h2>Paramètres et suite</h2><p>La prochaine étape consistera à brancher ce front-end sur une base en ligne sécurisée.</p></div></div>
+        <div class="grid-2">
+          <div class="card history-list"><div class="history-item">Frontend web/PWA déjà prêt.</div><div class="history-item">Backend conseillé : Supabase.</div><div class="history-item">Authentification : comptes par personnel.</div><div class="history-item">Journalisation : prêts, retours, création, édition.</div></div>
+          <div class="card history-list"><div class="history-item">Gratuit au démarrage.</div><div class="history-item">Compatible mobile.</div><div class="history-item">Impression des planches QR.</div><div class="history-item">Évolutif vers usage multi-utilisateur.</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="loanDialog"><div class="modal-head"><strong>Prêter le matériel</strong></div><div class="modal-body"><div class="small" id="loanDialogMeta"></div><div class="search-results"><label>Prêté à</label><input id="borrowerInput" placeholder="Tapez un nom" autocomplete="off" /><div class="suggestions" id="borrowerSuggestions"></div></div><div class="grid-2"><div><label>Date butoir retour</label><input id="dueDateInput" type="date" /></div><div class="search-results"><label>Procédure</label><input id="procedureInput" placeholder="Optionnel" autocomplete="off" /><div class="suggestions" id="procedureSuggestions"></div></div></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-dialog="loanDialog">Annuler</button><button class="btn btn-primary" id="confirmLoanBtn">Enregistrer le prêt</button></div></dialog>
+  <dialog id="returnDialog"><div class="modal-head"><strong>Retour du matériel</strong></div><div class="modal-body"><div id="returnDialogMeta"></div><div><label>Commentaire retour</label><textarea id="returnCommentInput" placeholder="Optionnel"></textarea></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-dialog="returnDialog">Annuler</button><button class="btn btn-primary" id="confirmReturnBtn">Enregistrer le retour</button></div></dialog>
+  <dialog id="registerMaterialDialog"><div class="modal-head"><strong>Premier scan : enregistrer le matériel</strong></div><div class="modal-body"><div class="small" id="registerMaterialMeta"></div><div><label>Nom</label><input id="newMaterialName" placeholder="Ex. Disque dur 2 To" /></div><div><label>Catégorie</label><input id="newMaterialCategory" placeholder="Ex. Disque dur, SSD, ordinateur" /></div><div><label>Description</label><textarea id="newMaterialDescription" placeholder="Optionnel"></textarea></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-dialog="registerMaterialDialog">Annuler</button><button class="btn btn-primary" id="confirmRegisterMaterialBtn">Enregistrer</button></div></dialog>
+  <dialog id="materialDialog"><div class="modal-head"><strong id="materialDialogTitle">Ajouter un matériel</strong></div><div class="modal-body"><div><label>Numéro QR</label><input id="materialQrInput" placeholder="Ex. GEND-000055" /></div><div><label>Nom</label><input id="materialNameInput" /></div><div><label>Catégorie</label><input id="materialCategoryInput" /></div><div><label>Description</label><textarea id="materialDescriptionInput"></textarea></div></div><div class="modal-foot"><button class="btn btn-secondary" data-close-dialog="materialDialog">Annuler</button><button class="btn btn-primary" id="saveMaterialBtn">Enregistrer</button></div></dialog>
+
+  <script>
+    (() => {
+      const state = {
+        currentUser:{ id:'u-admin', name:'Admin unité', username:'admin', role:'Administrateur' },
+        users:[
+          { id:'u-admin', name:'Admin unité', username:'admin', role:'Administrateur' },
+          { id:'u-1', name:'Adjudant Martin', username:'amartin', role:'Gestionnaire' },
+          { id:'u-2', name:'Gendarme Petit', username:'gpetit', role:'Utilisateur' },
+          { id:'u-3', name:'Maréchal des logis Bernard', username:'mbernard', role:'Utilisateur' }
+        ],
+        procedures:['PV 2026/145','Enquête préliminaire 26-031','Flagrant délit 26-078'],
+        materials:[
+          { id:'m1', qrCode:'GEND-000001', name:'Disque dur 2 To', category:'Disque dur', description:'Disque de copie judiciaire' },
+          { id:'m2', qrCode:'GEND-000002', name:'SSD 1 To', category:'SSD', description:'Support d’acquisition rapide' },
+          { id:'m3', qrCode:'GEND-000003', name:'Ordinateur portable Dell', category:'Ordinateur', description:'Poste d’audition mobile' },
+          { id:'m4', qrCode:'GEND-000004', name:'Lecteur de cartes', category:'Périphérique', description:'Lecteur universel' }
+        ],
+        loans:[],
+        ui:{ activePage:'dashboard', selectedMaterialId:null, selectedLoanId:null, editMaterialId:null, pendingQr:null }
+      };
+      const $ = (s,r=document)=>r.querySelector(s); const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+      function todayISO(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
+      function fmtDate(iso){ return iso ? new Date(iso+'T12:00:00').toLocaleDateString('fr-FR') : '—'; }
+      function uid(p){ return p + Math.random().toString(36).slice(2,9); }
+      function escapeHtml(str=''){ return String(str).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+      function materialById(id){ return state.materials.find(m=>m.id===id); }
+      function currentLoanFor(materialId){ return state.loans.find(l => l.materialId===materialId && !l.returnDate); }
+      function statusFor(material){ return currentLoanFor(material.id) ? 'loaned' : 'available'; }
+      function categories(){ return [...new Set(state.materials.map(m=>m.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr')); }
+      state.loans = [
+        { id:'l1', materialId:'m1', borrower:'Adjudant Martin', procedure:'PV 2026/145', loanDate:todayISO(-2), dueDate:todayISO(3), returnDate:null, comment:'', handledBy:'Admin unité' },
+        { id:'l2', materialId:'m3', borrower:'Gendarme Petit', procedure:'Enquête préliminaire 26-031', loanDate:todayISO(-5), dueDate:todayISO(1), returnDate:todayISO(-1), comment:'Retour conforme', handledBy:'Admin unité' }
+      ];
+
+      function renderNav(){
+        $$('.nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.pageTarget===state.ui.activePage));
+        $$('.page').forEach(page => page.classList.toggle('active', page.id==='page-'+state.ui.activePage));
+        closeSidebar();
+      }
+      function labelTables(){
+        document.querySelectorAll('.table-wrap table').forEach(table => {
+          const heads = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+          table.querySelectorAll('tbody tr').forEach(tr => Array.from(tr.children).forEach((td,i)=>{ if(heads[i]) td.dataset.label = heads[i]; }));
+        });
+      }
+      function renderDashboard(){
+        const total=state.materials.length, open=state.loans.filter(l=>!l.returnDate).length, returned=state.loans.filter(l=>l.returnDate).length, users=state.users.length;
+        $('#kpiGrid').innerHTML = [['Matériels',total,'Parc total'],['Prêts en cours',open,'À récupérer'],['Retours enregistrés',returned,'Historique clos'],['Comptes',users,'Personnel créé']].map(([a,b,c])=>`<div class="card kpi"><span>${a}</span><strong>${b}</strong><div class="small">${c}</div></div>`).join('');
+        $('#dashboardChips').innerHTML = categories().map(c=>`<span class="chip">${escapeHtml(c)}</span>`).join('');
+        const openLoans = state.loans.filter(l=>!l.returnDate);
+        $('#dashboardLoansBody').innerHTML = openLoans.length ? openLoans.map(loan=>{ const m=materialById(loan.materialId); if(!m) return ''; return `<tr><td>${m.qrCode}</td><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.category)}</td><td>${escapeHtml(loan.borrower)}</td><td>${fmtDate(loan.loanDate)}</td><td>${fmtDate(loan.dueDate)}</td><td><button class="btn btn-secondary" data-return-loan="${loan.id}">Retour</button></td></tr>` }).join('') : `<tr><td colspan="7" class="small">Aucun prêt en cours.</td></tr>`;
+      }
+      function renderMaterials(){
+        const catSelect = $('#filterCategory'); const selected=catSelect.value||'all';
+        catSelect.innerHTML = `<option value="all">Toutes</option>` + categories().map(c=>`<option value="${escapeHtml(c)}" ${c===selected?'selected':''}>${escapeHtml(c)}</option>`).join('');
+        const status=$('#filterStatus').value, category=$('#filterCategory').value, search=$('#filterSearch').value.trim().toLowerCase();
+        const rows=state.materials.filter(m=>{
+          const st=statusFor(m); if(status!=='all' && st!==status) return false; if(category!=='all' && m.category!==category) return false;
+          return !search || [m.qrCode,m.name,m.category,m.description].join(' ').toLowerCase().includes(search);
+        });
+        $('#materialsBody').innerHTML = rows.length ? rows.map(m=>`<tr><td>${m.qrCode}</td><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.category)}</td><td>${escapeHtml(m.description||'')}</td><td><span class="status ${statusFor(m)}">${statusFor(m)==='loaned'?'Prêté':'Disponible'}</span></td><td><button class="btn btn-secondary" data-edit-material="${m.id}">Modifier</button></td></tr>`).join('') : `<tr><td colspan="6" class="small">Aucun matériel trouvé.</td></tr>`;
+      }
+      function renderHistory(){
+        const select=$('#historyUserFilter'); const current=select.value||'all';
+        const names=[...new Set(state.loans.map(l=>l.borrower))].sort((a,b)=>a.localeCompare(b,'fr'));
+        select.innerHTML=`<option value="all">Tous</option>`+names.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('');
+        const userFilter=select.value, stateFilter=$('#historyStateFilter').value;
+        const entries=[...state.loans].sort((a,b)=>(b.loanDate+b.id).localeCompare(a.loanDate+a.id)).filter(l=>{ if(userFilter!=='all' && l.borrower!==userFilter) return false; if(stateFilter==='open' && l.returnDate) return false; if(stateFilter==='closed' && !l.returnDate) return false; return true; });
+        $('#historyList').innerHTML = entries.length ? entries.map(l=>{ const m=materialById(l.materialId); return `<div class="history-item"><strong>${escapeHtml(m?.name||'Matériel')}</strong> · ${escapeHtml(l.borrower)}<br><span class="small">QR ${escapeHtml(m?.qrCode||'—')} · prêt ${fmtDate(l.loanDate)} · retour prévu ${fmtDate(l.dueDate)} · retour ${fmtDate(l.returnDate)} · procédure ${escapeHtml(l.procedure||'—')} · saisi par ${escapeHtml(l.handledBy||'—')}</span>${l.comment?`<div class="small" style="margin-top:.35rem">Commentaire : ${escapeHtml(l.comment)}</div>`:''}</div>`; }).join('') : `<div class="history-item">Aucun historique pour ce filtre.</div>`;
+      }
+      function renderAccounts(){ $('#sessionUserName').textContent = state.currentUser.name; $('#accountsBody').innerHTML = state.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.username)}</td><td>${escapeHtml(u.role)}</td></tr>`).join(''); }
+
+      function makeQrCanvas(text, size=180){
+        const container = document.createElement('div');
+        new QRCode(container, {
+          text,
+          width: size,
+          height: size,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        const el = container.querySelector('canvas') || container.querySelector('img');
+        if(el){ el.className = 'qr-canvas'; }
+        return el || container;
+      }
+      function renderQrSheet(){
+        const prefix=($('#qrPrefix').value||'GEND').trim().toUpperCase();
+        const start=Math.max(1, Number($('#qrStart').value||1));
+        const count=Math.min(60, Math.max(1, Number($('#qrCount').value||12)));
+        const pos=$('#qrLabelPos').value;
+        const sheet=$('#qrSheet'); sheet.innerHTML='';
+        for(let i=0;i<count;i++){
+          const num=`${prefix}-${String(start+i).padStart(6,'0')}`;
+          const item=document.createElement('div'); item.className=`qr-item ${pos}`;
+          const qrBox=document.createElement('div'); qrBox.appendChild(makeQrCanvas(num, 180));
+          const label=document.createElement('div'); label.className='qr-num'; label.textContent=num;
+          item.append(qrBox,label);
+          sheet.appendChild(item);
+        }
+      }
+      function syncQrLabelPos(){
+        document.querySelectorAll('.qr-item').forEach(el => {
+          el.classList.remove('bottom','right');
+          el.classList.add($('#qrLabelPos').value);
+        });
+      }
+      function prepareA4Print(){
+        const count = Math.max(1, Number($('#qrCount').value||12));
+        const sheet = $('#qrSheet');
+        sheet.style.gridTemplateColumns = count <= 8 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)';
+        sheet.parentElement.style.padding = count <= 8 ? '12mm' : '8mm';
+        document.querySelector('.print-sheet').style.padding = count <= 8 ? '12mm' : '8mm';
+        return count;
+      }
+      function renderAll(){ renderNav(); renderDashboard(); renderMaterials(); renderHistory(); renderAccounts(); renderQrSheet(); labelTables(); }
+      function showDialog(id){ document.getElementById(id).showModal(); }
+      function closeDialog(id){ document.getElementById(id).close(); }
+
+      function setSuggestions(inputEl, boxEl, values, onPick){
+        const q=inputEl.value.trim().toLowerCase(); if(!q){ boxEl.style.display='none'; boxEl.innerHTML=''; return; }
+        const matches=values.filter(v=>v.toLowerCase().includes(q)).slice(0,8); if(!matches.length){ boxEl.style.display='none'; boxEl.innerHTML=''; return; }
+        boxEl.innerHTML=matches.map(v=>`<button type="button">${escapeHtml(v)}</button>`).join(''); boxEl.style.display='block';
+        $$('button', boxEl).forEach((btn, idx)=>btn.onclick=()=>{ onPick(matches[idx]); boxEl.style.display='none'; });
+      }
+      function startLoan(materialId){
+        state.ui.selectedMaterialId=materialId; const m=materialById(materialId); $('#loanDialogMeta').textContent=`${m.qrCode} · ${m.name} · ${m.category}`; $('#borrowerInput').value=''; $('#dueDateInput').value=''; $('#procedureInput').value=''; showDialog('loanDialog');
+      }
+      function startReturn(loanId){
+        const loan=state.loans.find(l=>l.id===loanId); if(!loan) return; state.ui.selectedLoanId=loanId; const m=materialById(loan.materialId); $('#returnDialogMeta').innerHTML=`<strong>${escapeHtml(m.name)}</strong><br><span class="small">${m.qrCode} · prêté à ${escapeHtml(loan.borrower)} le ${fmtDate(loan.loanDate)}</span>`; $('#returnCommentInput').value=''; showDialog('returnDialog');
+      }
+
+      let cameraStream = null;
+      let cameraActive = false;
+      let scanLoop = null;
+      let detector = null;
+      async function openCameraScanner(){
+        $('#cameraStatus').textContent = 'Demande d’accès à la caméra…';
+        showDialog('cameraDialog');
+        if(!('BarcodeDetector' in window)){
+          $('#cameraStatus').textContent = 'Détection native QR non disponible dans ce navigateur. Utilise le champ de scan ou un lecteur externe.';
+          return;
+        }
+        if(!detector) detector = new BarcodeDetector({ formats:['qr_code'] });
+        try{
+          if(cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+          cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } }, audio:false });
+          const video = $('#cameraVideo');
+          video.srcObject = cameraStream;
+          await video.play();
+          cameraActive = true;
+          $('#cameraStatus').textContent = 'Caméra active, scanne un QR code.';
+          requestAnimationFrame(scanCameraFrame);
+        }catch(err){
+          $('#cameraStatus').textContent = 'Impossible d’ouvrir la caméra : ' + (err && err.message ? err.message : 'erreur inconnue');
+        }
+      }
+      async function scanCameraFrame(){
+        if(!cameraActive) return;
+        const video = $('#cameraVideo');
+        if(video.readyState >= 2){
+          try{
+            const codes = await detector.detect(video);
+            if(codes && codes.length){
+              const raw = codes[0].rawValue || '';
+              if(raw){
+                stopCameraScanner();
+                $('#scanInput').value = raw;
+                state.ui.activePage = 'scan';
+                renderNav();
+                scanCode(raw);
+                return;
+              }
+            }
+          }catch(e){}
+        }
+        scanLoop = requestAnimationFrame(scanCameraFrame);
+      }
+      function stopCameraScanner(){
+        cameraActive = false;
+        if(scanLoop) cancelAnimationFrame(scanLoop);
+        scanLoop = null;
+        if(cameraStream){ cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+      }
+
+      function scanCode(raw){
+        const code=raw.trim().toUpperCase(); if(!code){ $('#scanResult').textContent='Saisissez un numéro QR.'; return; }
+        const material=state.materials.find(m=>m.qrCode.toUpperCase()===code);
+        if(!material){ $('#scanResult').innerHTML=`Numéro <strong>${escapeHtml(code)}</strong> inconnu. Enregistrement initial requis.`; $('#registerMaterialMeta').textContent=`Nouveau numéro QR : ${code}`; $('#newMaterialName').value=''; $('#newMaterialCategory').value=''; $('#newMaterialDescription').value=''; state.ui.pendingQr=code; showDialog('registerMaterialDialog'); return; }
+        const loan=currentLoanFor(material.id);
+        if(loan){ $('#scanResult').innerHTML=`Ce matériel est déjà prêté à <strong>${escapeHtml(loan.borrower)}</strong>.`; startReturn(loan.id); }
+        else { $('#scanResult').innerHTML=`Matériel disponible : <strong>${escapeHtml(material.name)}</strong>.`; startLoan(material.id); }
+      }
+      function openSidebar(){ if(window.innerWidth<=980){ $('#sidebar').classList.add('mobile-open'); $('#sidebarBackdrop').classList.add('show'); } }
+      function closeSidebar(){ $('#sidebar').classList.remove('mobile-open'); $('#sidebarBackdrop').classList.remove('show'); }
+
+
+      function collapseLongText(){
+        document.querySelectorAll('td, th, .notice, .hero p, .small, .history-item, .sidebar-card, .kpi strong, .kpi span').forEach(el => {
+          el.style.overflowWrap = 'anywhere';
+          el.style.wordBreak = 'break-word';
+          el.style.hyphens = 'auto';
+        });
+      }
+      function makeMobileCards(){
+        if(window.innerWidth > 980) return;
+        document.querySelectorAll('.table-wrap table').forEach(table => {
+          const heads = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+          table.querySelectorAll('tbody tr').forEach(tr => {
+            Array.from(tr.children).forEach((td, i) => {
+              if(!td.dataset.label && heads[i]) td.dataset.label = heads[i];
+            });
+          });
+        });
+      }
+      function refreshResponsive(){
+        collapseLongText();
+        makeMobileCards();
+        updateViewportOffset();
+      }
+
+      function updateViewportOffset(){
+        const vv = window.visualViewport;
+        const offset = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+        document.documentElement.style.setProperty('--keyboard-offset', offset + 'px');
+      }
+      function ensureVisible(el){
+        if(!el) return;
+        setTimeout(()=>{
+          try{ el.scrollIntoView({block:'center', inline:'nearest', behavior:'smooth'}); }catch(e){}
+        }, 220);
+      }
+
+      $$('.nav button').forEach(btn=>btn.addEventListener('click', ()=>{ state.ui.activePage=btn.dataset.pageTarget; renderNav(); }));
+      $('#mobileMenuBtn').addEventListener('click', openSidebar); $('#sidebarBackdrop').addEventListener('click', closeSidebar);
+      $('#themeBtn').addEventListener('click', ()=>{ const html=document.documentElement; html.setAttribute('data-theme', html.getAttribute('data-theme')==='dark' ? 'light' : 'dark'); });
+      document.documentElement.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      $('#quickScanBtn').addEventListener('click', ()=>{ state.ui.activePage='scan'; renderNav(); $('#scanInput').focus(); });
+      $('#scanFab').addEventListener('click', openCameraScanner);
+      $('#scanButton').addEventListener('click', ()=>scanCode($('#scanInput').value)); $('#scanInput').addEventListener('keydown', e=>{ if(e.key==='Enter') scanCode($('#scanInput').value); });
+      $('#openCameraFromScanPage').addEventListener('click', openCameraScanner);
+      $$('.sample-scan').forEach(btn=>btn.addEventListener('click', ()=>{ $('#scanInput').value=btn.dataset.code; scanCode(btn.dataset.code); }));
+
+      $('#confirmRegisterMaterialBtn').addEventListener('click', ()=>{
+        const name=$('#newMaterialName').value.trim(), category=$('#newMaterialCategory').value.trim(); if(!name || !category){ alert('Nom et catégorie requis.'); return; }
+        const material={ id:uid('m-'), qrCode:state.ui.pendingQr, name, category, description:$('#newMaterialDescription').value.trim() }; state.materials.push(material); closeDialog('registerMaterialDialog'); renderAll(); startLoan(material.id);
+      });
+      $('#confirmLoanBtn').addEventListener('click', ()=>{
+        const borrower=$('#borrowerInput').value.trim(); if(!borrower){ alert('Le nom de l’emprunteur est requis.'); return; }
+        if(!state.users.some(u=>u.name.toLowerCase()===borrower.toLowerCase())) state.users.push({ id:uid('u-'), name:borrower, username:borrower.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,''), role:'Utilisateur' });
+        const procedure=$('#procedureInput').value.trim(); if(procedure && !state.procedures.includes(procedure)) state.procedures.push(procedure);
+        state.loans.push({ id:uid('l-'), materialId:state.ui.selectedMaterialId, borrower, procedure, loanDate:todayISO(0), dueDate:$('#dueDateInput').value || null, returnDate:null, comment:'', handledBy:state.currentUser.name });
+        closeDialog('loanDialog'); renderAll(); state.ui.activePage='dashboard'; renderNav();
+      });
+      $('#confirmReturnBtn').addEventListener('click', ()=>{ const loan=state.loans.find(l=>l.id===state.ui.selectedLoanId); if(!loan) return; loan.returnDate=todayISO(0); loan.comment=$('#returnCommentInput').value.trim(); closeDialog('returnDialog'); renderAll(); });
+      $('#addMaterialBtn').addEventListener('click', ()=>{ state.ui.editMaterialId=null; $('#materialDialogTitle').textContent='Ajouter un matériel'; $('#materialQrInput').value=''; $('#materialNameInput').value=''; $('#materialCategoryInput').value=''; $('#materialDescriptionInput').value=''; showDialog('materialDialog'); });
+      $('#saveMaterialBtn').addEventListener('click', ()=>{
+        const data={ qrCode:$('#materialQrInput').value.trim().toUpperCase(), name:$('#materialNameInput').value.trim(), category:$('#materialCategoryInput').value.trim(), description:$('#materialDescriptionInput').value.trim() };
+        if(!data.qrCode || !data.name || !data.category){ alert('QR, nom et catégorie requis.'); return; }
+        if(state.ui.editMaterialId) Object.assign(materialById(state.ui.editMaterialId), data); else state.materials.push({ id:uid('m-'), ...data }); closeDialog('materialDialog'); renderAll();
+      });
+      document.addEventListener('click', e=>{
+        const returnBtn=e.target.closest('[data-return-loan]'); if(returnBtn) startReturn(returnBtn.dataset.returnLoan);
+        const editBtn=e.target.closest('[data-edit-material]'); if(editBtn){ const m=materialById(editBtn.dataset.editMaterial); state.ui.editMaterialId=m.id; $('#materialDialogTitle').textContent='Modifier le matériel'; $('#materialQrInput').value=m.qrCode; $('#materialNameInput').value=m.name; $('#materialCategoryInput').value=m.category; $('#materialDescriptionInput').value=m.description || ''; showDialog('materialDialog'); }
+        const closeBtn=e.target.closest('[data-close-dialog]'); if(closeBtn){ if(closeBtn.dataset.closeDialog==='cameraDialog') stopCameraScanner(); closeDialog(closeBtn.dataset.closeDialog); }
+        if(!e.target.closest('.search-results')) $$('.suggestions').forEach(el=>el.style.display='none');
+      });
+      $('#filterStatus').addEventListener('change', renderMaterials); $('#filterCategory').addEventListener('change', renderMaterials); $('#filterSearch').addEventListener('input', renderMaterials);
+      $('#historyUserFilter').addEventListener('change', renderHistory); $('#historyStateFilter').addEventListener('change', renderHistory);
+      $('#createAccountBtn').addEventListener('click', ()=>{ const name=$('#accountName').value.trim(), username=$('#accountUsername').value.trim(), role=$('#accountRole').value; if(!name || !username){ alert('Nom et identifiant requis.'); return; } state.users.push({ id:uid('u-'), name, username, role }); $('#accountName').value=''; $('#accountUsername').value=''; $('#accountRole').value='Utilisateur'; renderAccounts(); });
+      $('#borrowerInput').addEventListener('input', ()=>setSuggestions($('#borrowerInput'), $('#borrowerSuggestions'), state.users.map(u=>u.name), v=>$('#borrowerInput').value=v));
+      $('#procedureInput').addEventListener('input', ()=>setSuggestions($('#procedureInput'), $('#procedureSuggestions'), state.procedures, v=>$('#procedureInput').value=v));
+      ['qrPrefix','qrStart','qrCount','qrLabelPos'].forEach(id=>document.getElementById(id).addEventListener('input', ()=>{ renderQrSheet(); syncQrLabelPos(); }));
+      $('#generateQrBtn').addEventListener('click', ()=>{ renderQrSheet(); syncQrLabelPos(); });
+      $('#printQrBtn').addEventListener('click', ()=>{ renderQrSheet(); syncQrLabelPos(); prepareA4Print(); window.print(); });
+      window.addEventListener('resize', ()=>{ if(window.innerWidth>980) closeSidebar(); refreshResponsive(); });
+      $('#cameraRetryBtn').addEventListener('click', openCameraScanner);
+      $('#cameraDialog').addEventListener('close', stopCameraScanner);
+      if(window.visualViewport){ window.visualViewport.addEventListener('resize', updateViewportOffset); window.visualViewport.addEventListener('scroll', updateViewportOffset); }
+      document.addEventListener('focusin', e=>{ if(e.target.matches('input, textarea, select')){ document.body.classList.add('keyboard-open'); updateViewportOffset(); ensureVisible(e.target); } });
+      document.addEventListener('focusout', ()=>{ setTimeout(()=>{ if(!document.querySelector(':focus-visible')){ document.body.classList.remove('keyboard-open'); } updateViewportOffset(); }, 120); });
+      window.addEventListener('resize', refreshResponsive);
+      ['scanInput','borrowerInput','dueDateInput','procedureInput','returnCommentInput','newMaterialName','newMaterialCategory','newMaterialDescription','materialQrInput','materialNameInput','materialCategoryInput','materialDescriptionInput','accountName','accountUsername','qrPrefix','qrStart','qrCount'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('focus', ()=>ensureVisible(el)); } });
+      updateViewportOffset();
+      refreshResponsive();
+      renderAll();
+      syncQrLabelPos();
+    })();
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CONFIGURATION SUPABASE
+    // La clé "anon/publishable" ci-dessous est conçue pour être exposée côté
+    // client — c'est la Row Level Security (RLS) de Supabase qui protège les
+    // données, pas cette clé. Elle peut donc figurer dans ce fichier sans risque.
+    //
+    // ⚠️  NE JAMAIS mettre ici la clé "service_role" (accès admin total).
+    //     Elle ne doit exister que côté serveur, jamais dans un fichier client.
+    // ═══════════════════════════════════════════════════════════════════════════
+    const _SUPABASE_URL  = 'https://wpttvualgaumwswxxvny.supabase.co';
+    const _SUPABASE_ANON = 'sb_publishable_pElrrAcV6bomcUgSaWkEIA_cVaQnE-a';
+
+    // ─── SUPABASE INIT ───────────────────────────────────────────────────────────
+    const _sb = supabase.createClient(_SUPABASE_URL, _SUPABASE_ANON);
+
+    // ─── AUTH STATE ──────────────────────────────────────────────────────────────
+    let _currentUser = null;
+
+    async function sbInit() {
+      const { data } = await _sb.auth.getSession();
+      _currentUser = data.session?.user || null;
+      if (_currentUser) {
+        showApp();
+      } else {
+        showLogin();
+      }
+    }
+
+    _sb.auth.onAuthStateChange((_event, session) => {
+      _currentUser = session?.user || null;
+      if (_currentUser) { showApp(); }
+      else { showLogin(); }
+    });
+
+    // ─── LOGIN PAGE ──────────────────────────────────────────────────────────────
+    function buildLoginPage() {
+      const existing = document.getElementById('loginOverlay');
+      if (existing) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'loginOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:var(--color-bg);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem';
+      overlay.innerHTML = `
+        <div style="background:var(--color-surface);border:1px solid var(--color-border);border-radius:1rem;padding:1.5rem;width:min(400px,100%);display:grid;gap:1rem;box-shadow:var(--shadow-md)">
+          <div style="text-align:center">
+            <div style="width:52px;height:52px;border-radius:14px;background:var(--color-primary);color:white;display:grid;place-items:center;margin:0 auto .75rem">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="10" height="16" rx="2"></rect><path d="M14 8h6v10a2 2 0 0 1-2 2h-4"></path></svg>
+            </div>
+            <h2 style="margin:0;font-size:1.4rem">Prêt matériel</h2>
+            <p style="margin:.3rem 0 0;color:var(--color-text-muted);font-size:.9rem">Unité de gendarmerie</p>
+          </div>
+          <div id="loginError" style="display:none;padding:.75rem;border-radius:.5rem;background:color-mix(in srgb, var(--color-error) 12%, transparent);color:var(--color-error);font-size:.9rem"></div>
+          <div>
+            <label style="display:block;font-size:.8rem;font-weight:700;color:var(--color-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.06em">Email</label>
+            <input id="loginEmail" type="email" placeholder="prenom.nom@gendarmerie.fr" style="width:100%;padding:.8rem .9rem;border-radius:.5rem;border:1px solid var(--color-border);background:var(--color-surface-2);font-size:16px" />
+          </div>
+          <div>
+            <label style="display:block;font-size:.8rem;font-weight:700;color:var(--color-text-muted);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.06em">Mot de passe</label>
+            <input id="loginPassword" type="password" placeholder="••••••••" style="width:100%;padding:.8rem .9rem;border-radius:.5rem;border:1px solid var(--color-border);background:var(--color-surface-2);font-size:16px" />
+          </div>
+          <button id="loginBtn" style="padding:.9rem;border-radius:.75rem;background:var(--color-primary);color:white;border:none;font-weight:700;font-size:1rem;cursor:pointer">Se connecter</button>
+          <div style="display:flex;align-items:center;gap:.75rem;margin:.25rem 0"><div style="flex:1;height:1px;background:var(--color-divider)"></div><span style="font-size:.8rem;color:var(--color-text-faint)">ou</span><div style="flex:1;height:1px;background:var(--color-divider)"></div></div>
+          <button id="demoBtn" style="padding:.9rem;border-radius:.75rem;background:var(--color-surface-offset);color:var(--color-text);border:1px solid var(--color-border);font-weight:700;font-size:1rem;cursor:pointer">Ouvrir en mode démo (local)</button>
+          <p style="text-align:center;font-size:.8rem;color:var(--color-text-faint);padding:.5rem;border-radius:.5rem;background:var(--color-surface-2)">ℹ️ Le mode démo fonctionne sans connexion.<br>Les données restent en mémoire et ne sont pas sauvegardées.</p>
+          <p style="text-align:center;font-size:.85rem;color:var(--color-text-muted)">Accès réservé au personnel autorisé.<br>Créez votre compte via l'administrateur.</p>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('loginEmail').value.trim();
+        const pwd = document.getElementById('loginPassword').value;
+        const errBox = document.getElementById('loginError');
+        errBox.style.display = 'none';
+        if (!email || !pwd) { errBox.textContent = 'Email et mot de passe requis.'; errBox.style.display = 'block'; return; }
+        document.getElementById('loginBtn').textContent = 'Connexion…';
+        const { error } = await _sb.auth.signInWithPassword({ email, password: pwd });
+        document.getElementById('loginBtn').textContent = 'Se connecter';
+        if (error) { errBox.textContent = 'Erreur : ' + error.message; errBox.style.display = 'block'; }
+      });
+
+      document.getElementById('loginPassword').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('loginBtn').click();
+      });
+
+      document.getElementById('demoBtn').addEventListener('click', () => {
+        document.getElementById('loginOverlay')?.remove();
+        document.getElementById('app').style.display = '';
+        // Affiche une bannière "mode démo" dans la topbar
+        const topbar = document.querySelector('.topbar');
+        if (topbar && !document.getElementById('demoBanner')) {
+          const banner = document.createElement('div');
+          banner.id = 'demoBanner';
+          banner.style.cssText = 'position:sticky;top:0;z-index:6;background:color-mix(in srgb,var(--color-warning) 12%,transparent);color:var(--color-warning);font-size:var(--text-xs);font-weight:700;text-align:center;padding:.45rem 1rem;border-bottom:1px solid color-mix(in srgb,var(--color-warning) 25%,transparent)';
+          banner.textContent = '⚠️ Mode démo — données en mémoire uniquement, non sauvegardées';
+          topbar.insertAdjacentElement('beforebegin', banner);
+        }
+      });
+    }
+
+    function showLogin() {
+      document.getElementById('loginOverlay')?.remove();
+      buildLoginPage();
+      document.getElementById('app').style.display = 'none';
+    }
+
+    function showApp() {
+      document.getElementById('loginOverlay')?.remove();
+      document.getElementById('app').style.display = '';
+      if (_currentUser) {
+        document.getElementById('sessionUserName').textContent = _currentUser.email?.split('@')[0] || 'Utilisateur';
+      }
+    }
+
+    // ─── LOGOUT ──────────────────────────────────────────────────────────────────
+
+    // Ajouter bouton logout dans topbar
+    (function addLogoutBtn() {
+      const topbar = document.querySelector('.topbar .actions');
+      if (!topbar) return;
+      const btn = document.createElement('button');
+      btn.id = 'logoutBtn';
+      btn.className = 'btn btn-secondary';
+      btn.textContent = 'Déconnexion';
+      btn.addEventListener('click', async () => { await _sb.auth.signOut(); });
+      topbar.appendChild(btn);
+    })();
+
+    // ─── LOG ACTION ──────────────────────────────────────────────────────────────
+    async function sbLog(action, targetTable, targetId, details = {}) {
+      if (!_currentUser) return;
+      await _sb.from('logs').insert([{
+        user_id: _currentUser.id,
+        action,
+        target_table: targetTable,
+        target_id: String(targetId),
+        details,
+        created_at: new Date().toISOString()
+      }]);
+    }
+
+    // ─── SYNC MATÉRIELS → SUPABASE ───────────────────────────────────────────────
+    async function sbSyncMaterials() {
+      const { data, error } = await _sb.from('materials').select('*');
+      if (error || !data) return;
+      data.forEach(m => {
+        if (!state.materials.find(x => x.id === m.id)) {
+          state.materials.push({ id: m.id, qrCode: m.qr_code, name: m.name, category: m.category || '', description: m.description || '' });
+        }
+      });
+      renderAll();
+    }
+
+    async function sbSyncLoans() {
+      const { data, error } = await _sb.from('loans').select('*, users(name)');
+      if (error || !data) return;
+      state.loans = data.map(l => ({
+        id: l.id,
+        materialId: l.material_id,
+        borrower: l.users?.name || l.borrower_name || 'Inconnu',
+        procedure: l.procedure || '',
+        loanDate: (l.loan_date || '').slice(0, 10),
+        dueDate: l.due_date ? l.due_date.slice(0, 10) : null,
+        returnDate: l.return_date ? l.return_date.slice(0, 10) : null,
+        comment: l.comment || '',
+        handledBy: l.handled_by || ''
+      }));
+      renderAll();
+    }
+
+    async function sbSyncUsers() {
+      const { data, error } = await _sb.from('users').select('*');
+      if (error || !data) return;
+      data.forEach(u => {
+        if (!state.users.find(x => x.id === u.id)) {
+          state.users.push({ id: u.id, name: u.name, username: u.username || '', role: u.role || 'utilisateur' });
+        }
+      });
+    }
+
+    // ─── PAGE JOURNAL (logs) ─────────────────────────────────────────────────────
+    async function loadLogsPage() {
+      const container = document.getElementById('sbLogsContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="small">Chargement…</div>';
+      const { data, error } = await _sb.from('logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) { container.innerHTML = '<div class="small">Erreur chargement journal.</div>'; return; }
+      if (!data.length) { container.innerHTML = '<div class="small">Aucune entrée dans le journal.</div>'; return; }
+      container.innerHTML = data.map(log => {
+        const d = new Date(log.created_at);
+        const dateStr = d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR');
+        const details = typeof log.details === 'object' ? JSON.stringify(log.details, null, 2) : (log.details || '');
+        return `<div class="history-item">
+          <strong>${log.action}</strong> sur <code>${log.target_table}</code> · ID : ${log.target_id}<br>
+          <span class="small">${dateStr}</span>
+          ${details ? `<pre style="font-size:.75rem;overflow:auto;margin:.4rem 0 0;padding:.5rem;background:var(--color-surface-offset);border-radius:.5rem">${details}</pre>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    // ─── PATCH : on envoie aussi vers Supabase lors des actions ─────────────────
+    const _origConfirmLoan = document.getElementById('confirmLoanBtn');
+    const _origConfirmReturn = document.getElementById('confirmReturnBtn');
+
+    _origConfirmLoan?.addEventListener('click', async () => {
+      // Après le prêt local, on l'envoie aussi en base
+      setTimeout(async () => {
+        const loan = state.loans[state.loans.length - 1];
+        if (!loan) return;
+        const material = materialById(loan.materialId);
+        const borrowerUser = state.users.find(u => u.name === loan.borrower);
+        await _sb.from('loans').insert([{
+          id: loan.id,
+          material_id: loan.materialId,
+          borrower_name: loan.borrower,
+          borrower_id: borrowerUser?.id || null,
+          procedure: loan.procedure || null,
+          loan_date: loan.loanDate,
+          due_date: loan.dueDate || null,
+          return_date: null,
+          comment: '',
+          handled_by: _currentUser?.email || ''
+        }]);
+        await sbLog('loan_created', 'loans', loan.id, { material: material?.name, borrower: loan.borrower, procedure: loan.procedure });
+      }, 200);
+    });
+
+    _origConfirmReturn?.addEventListener('click', async () => {
+      setTimeout(async () => {
+        const loan = state.loans.find(l => l.id === state.ui.selectedLoanId);
+        if (!loan || !loan.returnDate) return;
+        await _sb.from('loans').update({ return_date: loan.returnDate, comment: loan.comment }).eq('id', loan.id);
+        await sbLog('loan_returned', 'loans', loan.id, { returnDate: loan.returnDate, comment: loan.comment });
+      }, 200);
+    });
+
+    // ─── AJOUTER PAGE JOURNAL DANS LA NAV ────────────────────────────────────────
+    (function addJournalPage() {
+      // Nav button
+      const nav = document.querySelector('.nav');
+      if (!nav) return;
+      const btn = document.createElement('button');
+      btn.dataset.pageTarget = 'journal';
+      btn.textContent = 'Journal d'activité';
+      nav.appendChild(btn);
+      btn.addEventListener('click', () => { state.ui.activePage = 'journal'; renderNav(); loadLogsPage(); });
+
+      // Page
+      const main = document.querySelector('.main');
+      const section = document.createElement('section');
+      section.className = 'page';
+      section.id = 'page-journal';
+      section.innerHTML = `
+        <div class="hero"><div><h2>Journal d'activité</h2><p>Toutes les actions enregistrées dans la base Supabase.</p></div></div>
+        <div class="card history-list" id="sbLogsContainer"><div class="small">Cliquez sur "Journal d'activité" pour charger.</div></div>`;
+      main.appendChild(section);
+    })();
+
+    // ─── CRÉATION COMPTE PERSONNEL (page comptes) ────────────────────────────────
+    document.getElementById('createAccountBtn')?.addEventListener('click', async () => {
+      const name = document.getElementById('accountName').value.trim();
+      const username = document.getElementById('accountUsername').value.trim();
+      const role = document.getElementById('accountRole').value;
+      if (!name || !username) { alert('Nom et identifiant requis.'); return; }
+      // Insérer dans Supabase
+      const { data, error } = await _sb.from('users').insert([{ name, username, role }]).select();
+      if (error) { alert('Erreur création compte : ' + error.message); return; }
+      state.users.push({ id: data[0].id, name, username, role });
+      await sbLog('account_created', 'users', data[0].id, { name, username, role });
+      document.getElementById('accountName').value = '';
+      document.getElementById('accountUsername').value = '';
+      renderAccounts();
+      alert('Compte créé avec succès.');
+    });
+
+    // ─── CRÉATION MATÉRIEL → SUPABASE ────────────────────────────────────────────
+    document.getElementById('saveMaterialBtn')?.addEventListener('click', async () => {
+      setTimeout(async () => {
+        const m = state.materials[state.materials.length - 1];
+        if (!m) return;
+        await _sb.from('materials').upsert([{ id: m.id, qr_code: m.qrCode, name: m.name, category: m.category || '', description: m.description || '' }]);
+        await sbLog('material_saved', 'materials', m.id, { qrCode: m.qrCode, name: m.name });
+      }, 200);
+    });
+
+    // ─── DÉMARRAGE ────────────────────────────────────────────────────────────────
+    sbInit().then(() => {
+      if (_currentUser) {
+        sbSyncUsers().then(() => sbSyncMaterials()).then(() => sbSyncLoans());
+      }
+    });
+
+  </script>
+
+  <button id="scanFab" class="scan-fab" aria-label="Scanner un QR code">Scan</button>
+  <dialog id="cameraDialog">
+    <div class="modal-head"><strong>Scanner un QR code</strong></div>
+    <div class="modal-body">
+      <div class="small">Ouvre la caméra et lit rapidement un QR code, sur smartphone comme sur ordinateur si une caméra est disponible.</div>
+      <div class="camera-wrap">
+        <video id="cameraVideo" playsinline muted autoplay></video>
+        <canvas id="cameraCanvas" class="hidden"></canvas>
+        <div id="cameraOverlay" class="camera-overlay">Cible le QR code dans le cadre</div>
+      </div>
+      <div class="small" id="cameraStatus">Caméra prête.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" data-close-dialog="cameraDialog">Fermer</button>
+      <button class="btn btn-primary" id="cameraRetryBtn">Relancer</button>
+    </div>
+  </dialog>
+
+</body>
+</html>
