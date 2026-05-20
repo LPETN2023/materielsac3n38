@@ -561,10 +561,6 @@ const Pages = {
         <button class="btn btn-primary btn-sm" id="add-user-btn">+ Créer un compte</button>
       </div>
       <div class="page-body">
-        <div class="alert alert-info" style="margin-bottom:16px">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <div>Pré-requis : dans Supabase → <strong>Authentication → Settings → désactiver "Confirm email"</strong></div>
-        </div>
         <div id="users-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
     await Pages._loadUsers();
