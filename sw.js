@@ -1,46 +1,50 @@
 // ============================================================
 // SERVICE WORKER - Cache pour PWA
+// Chemin de base : /materielsac3n38/
 // ============================================================
-const CACHE_NAME = 'inventaire-v1';
+const CACHE_NAME = 'inventaire-v2';
+const BASE = '/materielsac3n38';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/config.js',
-  '/js/pages.js',
-  '/js/app.js',
-  '/manifest.json'
+  `${BASE}/`,
+  `${BASE}/index.html`,
+  `${BASE}/css/style.css`,
+  `${BASE}/js/config.js`,
+  `${BASE}/js/pages.js`,
+  `${BASE}/js/app.js`,
+  `${BASE}/js/pwa.js`,
+  `${BASE}/manifest.json`
 ];
 
-// Installation : mise en cache des assets statiques
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activation : nettoyage des anciens caches
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch : stratégie Network First (données fraîches), fallback cache
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Ignore les requêtes Supabase (toujours réseau)
-  if (url.hostname.includes('supabase') || url.hostname.includes('googleapis')) {
+  // Ignore Supabase et CDN externes (toujours réseau)
+  if (url.hostname.includes('supabase') ||
+      url.hostname.includes('jsdelivr') ||
+      url.hostname.includes('googleapis')) {
     return;
   }
 
-  // Pour les assets statiques : cache first
-  if (STATIC_ASSETS.some(asset => url.pathname === asset || url.pathname.endsWith(asset))) {
+  // Assets statiques : cache first
+  if (STATIC_ASSETS.some(asset => url.pathname === asset || url.pathname.startsWith(asset))) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         const networkFetch = fetch(event.request).then(response => {
@@ -56,7 +60,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Pour le reste : network first
+  // Reste : network first
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

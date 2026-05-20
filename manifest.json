@@ -2,7 +2,8 @@
   "name": "Inventaire Judiciaire",
   "short_name": "Inventaire",
   "description": "Système de gestion d'inventaire judiciaire sécurisé",
-  "start_url": "/",
+  "start_url": "/materielsac3n38/",
+  "scope": "/materielsac3n38/",
   "display": "standalone",
   "background_color": "#1B3A6B",
   "theme_color": "#1B3A6B",
@@ -22,19 +23,17 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
   "shortcuts": [
     {
       "name": "Scanner QR",
       "short_name": "Scanner",
-      "description": "Scanner un QR code",
-      "url": "/?action=scan",
+      "url": "/materielsac3n38/?action=scan",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Inventaire",
       "short_name": "Inventaire",
-      "url": "/?page=inventory",
+      "url": "/materielsac3n38/?page=inventory",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
