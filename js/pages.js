@@ -18,7 +18,7 @@ const Pages = {
         <div class="login-card">
           <div class="login-header">
             <div class="login-logo">🔐</div>
-            <h1 class="login-title">Inventaire Materiels</h1>
+            <h1 class="login-title">Inventaire Judiciaire</h1>
             <p class="login-subtitle">Accès réservé aux personnels autorisés</p>
           </div>
           <div id="login-error" class="alert alert-danger hidden">
@@ -61,7 +61,10 @@ const Pages = {
     btn.addEventListener('click', doLogin);
     passEl.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     emailEl.addEventListener('keydown', e => { if (e.key === 'Enter') passEl.focus(); });
-    setTimeout(() => emailEl.focus(), 100);
+    setTimeout(() => {
+      emailEl.focus();
+      initDomainAutofill(emailEl);
+    }, 100);
   },
 
   // ============================================================
@@ -561,6 +564,10 @@ const Pages = {
         <button class="btn btn-primary btn-sm" id="add-user-btn">+ Créer un compte</button>
       </div>
       <div class="page-body">
+        <div class="alert alert-info" style="margin-bottom:16px">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>Pré-requis : dans Supabase → <strong>Authentication → Settings → désactiver "Confirm email"</strong></div>
+        </div>
         <div id="users-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
     await Pages._loadUsers();
@@ -568,6 +575,11 @@ const Pages = {
       ['new-user-email','new-user-name','new-user-pass'].forEach(id => document.getElementById(id).value='');
       document.getElementById('new-user-role').value='user';
       UI.modal.open('add-user-modal');
+      setTimeout(() => {
+        const emailEl = document.getElementById('new-user-email');
+        emailEl.focus();
+        initDomainAutofill(emailEl);
+      }, 150);
     });
   },
 
