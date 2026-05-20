@@ -262,6 +262,9 @@ const Users = {
   async getAll() { return await db.from('profiles').select('*').order('created_at'); },
 
   async create(email, password, fullName, role = 'user') {
+	  if (!email.toLowerCase().endsWith('@gendarmerie.fr')) {
+      throw new Error('Seuls les emails @gendarmerie.fr sont autorisés');
+    }
     const { data, error: signUpError } = await db.auth.signUp({
       email, password, options: { data: { full_name: fullName } }
     });
