@@ -332,41 +332,20 @@ function initDomainAutofill(inputEl) {
   if (!inputEl || inputEl.dataset.domainAc) return;
   inputEl.dataset.domainAc = '1';
 
-  // Applique le domaine si pas encore présent
   const applyDomain = () => {
-    if (inputEl.value.length > 0 && !inputEl.value.includes('@')) {
-      const pos = inputEl.selectionStart;
-      inputEl.value = inputEl.value + DOMAIN;
-      inputEl.setSelectionRange(pos, pos);
+    const val = inputEl.value.trim();
+    if (val.length > 0 && !val.includes('@')) {
+      inputEl.value = val + DOMAIN;
     }
   };
 
-  inputEl.addEventListener('input', () => {
-    if (!inputEl.value.includes('@')) {
-      const pos = inputEl.selectionStart;
-      // Retire tout domaine partiel déjà là (si l'utilisateur tape après @)
-      const clean = inputEl.value.split('@')[0];
-      inputEl.value = clean.length > 0 ? clean + DOMAIN : '';
-      inputEl.setSelectionRange(pos, pos);
-    }
-  });
+  // Applique quand l'utilisateur quitte le champ
+  inputEl.addEventListener('blur', applyDomain);
 
-  inputEl.addEventListener('focus', applyDomain);
-
+  // Applique aussi sur Tab et Entrée sans quitter
   inputEl.addEventListener('keydown', e => {
-    const val = inputEl.value;
-    const atPos = val.indexOf('@');
-    const cursor = inputEl.selectionStart;
-
-    // Backspace depuis juste après le @ → efface le domaine entier
-    if (e.key === 'Backspace' && atPos !== -1 && cursor <= atPos + 1 && cursor > atPos) {
-      inputEl.value = val.substring(0, atPos);
-      e.preventDefault();
-    }
-    // Delete sur le @ → efface le domaine entier
-    if (e.key === 'Delete' && atPos !== -1 && cursor === atPos) {
-      inputEl.value = val.substring(0, atPos);
-      e.preventDefault();
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      applyDomain();
     }
   });
 }
