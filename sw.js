@@ -1,9 +1,13 @@
 // ============================================================
-// SERVICE WORKER - Cache pour PWA
-// Chemin de base : /materielsac3n38/
+// SERVICE WORKER - chemins relatifs pour GitHub Pages
 // ============================================================
-const CACHE_NAME = 'inventaire-v2';
-const BASE = '/materielsac3n38';
+const CACHE_NAME = 'inventaire-v3';
+
+// Le SW est installé depuis /materielsac3n38/sw.js
+// self.location.pathname = '/materielsac3n38/sw.js'
+// On déduit la base automatiquement
+const BASE = self.location.pathname.replace('/sw.js', '');
+
 const STATIC_ASSETS = [
   `${BASE}/`,
   `${BASE}/index.html`,
@@ -16,6 +20,7 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
+  console.log('SW install, BASE:', BASE);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(STATIC_ASSETS))
@@ -36,15 +41,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Ignore Supabase et CDN externes (toujours réseau)
+  // Ignore Supabase et CDN externes
   if (url.hostname.includes('supabase') ||
       url.hostname.includes('jsdelivr') ||
       url.hostname.includes('googleapis')) {
     return;
   }
 
-  // Assets statiques : cache first
-  if (STATIC_ASSETS.some(asset => url.pathname === asset || url.pathname.startsWith(asset))) {
+  // Assets statiques : cache first avec mise à jour réseau
+  if (url.pathname.startsWith(BASE)) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         const networkFetch = fetch(event.request).then(response => {
@@ -53,15 +58,9 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
           return response;
-        });
+        }).catch(() => cached);
         return cached || networkFetch;
       })
     );
-    return;
   }
-
-  // Reste : network first
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
 });
