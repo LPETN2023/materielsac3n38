@@ -1516,9 +1516,8 @@ html, body {
   box-shadow: none;
 }
 
-/* ============================================================
-   FIX: Page login - supprime le margin-left de la sidebar
-   ============================================================ */
+
+/* FIX: Page login pleine largeur */
 .main-content:has(.login-page) {
   margin-left: 0 !important;
 }
