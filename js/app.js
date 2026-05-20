@@ -1,26 +1,16 @@
 // ============================================================
-// APP.JS - Application principale
+// APP.JS - Application principale (corrigé)
 // ============================================================
 
-// ============================================================
-// UI - Interface utilisateur
-// ============================================================
 const UI = {
   toast(message, type = 'default', duration = 3000) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-
-    const icons = {
-      success: '✓',
-      error: '✕',
-      warning: '⚠',
-      default: 'ℹ'
-    };
-
+    const icons = { success: '✓', error: '✕', warning: '⚠', default: 'ℹ' };
     toast.innerHTML = `<span>${icons[type] || icons.default}</span> ${Utils.escapeHtml(message)}`;
     container.appendChild(toast);
-
     setTimeout(() => {
       toast.style.animation = 'toastOut 0.25s ease forwards';
       setTimeout(() => toast.remove(), 250);
@@ -30,22 +20,14 @@ const UI = {
   modal: {
     open(id) {
       const el = document.getElementById(id);
-      if (el) {
-        el.classList.add('open');
-        document.body.style.overflow = 'hidden';
-      }
+      if (el) { el.classList.add('open'); document.body.style.overflow = 'hidden'; }
     },
     close(id) {
       const el = document.getElementById(id);
-      if (el) {
-        el.classList.remove('open');
-        document.body.style.overflow = '';
-      }
+      if (el) { el.classList.remove('open'); document.body.style.overflow = ''; }
     },
     closeAll() {
-      document.querySelectorAll('.modal-backdrop.open').forEach(m => {
-        m.classList.remove('open');
-      });
+      document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
       document.body.style.overflow = '';
     }
   },
@@ -54,12 +36,9 @@ const UI = {
     const nameEl = document.getElementById('sidebar-user-name');
     const roleEl = document.getElementById('sidebar-user-role');
     const avatarEl = document.getElementById('sidebar-avatar');
-
     if (nameEl) nameEl.textContent = profile.full_name;
     if (roleEl) roleEl.textContent = profile.role === 'admin' ? 'Administrateur' : 'Utilisateur';
     if (avatarEl) avatarEl.textContent = profile.full_name.charAt(0).toUpperCase();
-
-    // Affiche/cache les éléments admin
     document.querySelectorAll('.admin-only').forEach(el => {
       el.style.display = profile.role === 'admin' ? '' : 'none';
     });
@@ -79,21 +58,18 @@ const UI = {
 
   confirm(message) {
     return new Promise(resolve => {
-      document.getElementById('confirm-message').textContent = message;
+      const msgEl = document.getElementById('confirm-message');
+      if (msgEl) msgEl.textContent = message;
       UI.modal.open('confirm-modal');
-
       const yesBtn = document.getElementById('confirm-yes');
       const noBtn = document.getElementById('confirm-no');
-
       const cleanup = () => {
         yesBtn.removeEventListener('click', onYes);
         noBtn.removeEventListener('click', onNo);
         UI.modal.close('confirm-modal');
       };
-
       const onYes = () => { cleanup(); resolve(true); };
       const onNo = () => { cleanup(); resolve(false); };
-
       yesBtn.addEventListener('click', onYes);
       noBtn.addEventListener('click', onNo);
     });
@@ -101,58 +77,20 @@ const UI = {
 };
 
 // ============================================================
-// AUTOCOMPLETE WIDGET
+// AUTOCOMPLETE
 // ============================================================
 function initAutocomplete(inputEl, fetchFn) {
-  let list = null;
-  let highlighted = -1;
+  if (inputEl.dataset.ac) return;
+  inputEl.dataset.ac = '1';
+  let list = null, highlighted = -1;
 
-  inputEl.addEventListener('input', async () => {
-    const val = inputEl.value.trim();
-    const results = await fetchFn(val);
-    renderList(results);
-  });
-
-  inputEl.addEventListener('focus', async () => {
+  const show = async () => {
     const results = await fetchFn(inputEl.value.trim());
-    renderList(results);
-  });
-
-  inputEl.addEventListener('keydown', e => {
-    const items = list?.querySelectorAll('.autocomplete-item') || [];
-    if (e.key === 'ArrowDown') {
-      highlighted = Math.min(highlighted + 1, items.length - 1);
-      updateHighlight(items);
-      e.preventDefault();
-    } else if (e.key === 'ArrowUp') {
-      highlighted = Math.max(highlighted - 1, -1);
-      updateHighlight(items);
-      e.preventDefault();
-    } else if (e.key === 'Enter' && highlighted >= 0) {
-      if (items[highlighted]) {
-        inputEl.value = items[highlighted].textContent;
-        closeList();
-        e.preventDefault();
-      }
-    } else if (e.key === 'Escape') {
-      closeList();
-    }
-  });
-
-  document.addEventListener('click', e => {
-    if (!inputEl.contains(e.target) && !list?.contains(e.target)) {
-      closeList();
-    }
-  });
-
-  function renderList(results) {
     closeList();
     if (!results.length) return;
-
     const wrapper = inputEl.closest('.autocomplete-wrapper') || inputEl.parentElement;
     list = document.createElement('div');
     list.className = 'autocomplete-list open';
-
     results.forEach(r => {
       const item = document.createElement('div');
       item.className = 'autocomplete-item';
@@ -165,35 +103,36 @@ function initAutocomplete(inputEl, fetchFn) {
       });
       list.appendChild(item);
     });
-
     wrapper.appendChild(list);
     highlighted = -1;
-  }
+  };
 
-  function updateHighlight(items) {
-    items.forEach((item, i) => {
-      item.classList.toggle('highlighted', i === highlighted);
-    });
-  }
+  inputEl.addEventListener('input', show);
+  inputEl.addEventListener('focus', show);
+  inputEl.addEventListener('keydown', e => {
+    const items = list?.querySelectorAll('.autocomplete-item') || [];
+    if (e.key === 'ArrowDown') { highlighted = Math.min(highlighted + 1, items.length - 1); updateHL(items); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { highlighted = Math.max(highlighted - 1, -1); updateHL(items); e.preventDefault(); }
+    else if (e.key === 'Enter' && highlighted >= 0) { inputEl.value = items[highlighted].textContent; closeList(); e.preventDefault(); }
+    else if (e.key === 'Escape') closeList();
+  });
+  document.addEventListener('click', e => {
+    if (!inputEl.contains(e.target) && !list?.contains(e.target)) closeList();
+  });
 
-  function closeList() {
-    list?.remove();
-    list = null;
-    highlighted = -1;
-  }
+  function updateHL(items) { items.forEach((item, i) => item.classList.toggle('highlighted', i === highlighted)); }
+  function closeList() { list?.remove(); list = null; highlighted = -1; }
 }
 
 // ============================================================
 // QR SCANNER
 // ============================================================
 const Scanner = {
-  stream: null,
-  scanning: false,
-  intervalId: null,
-  onResult: null,
+  stream: null, scanning: false, rafId: null, onResult: null,
 
   async open(callback) {
     this.onResult = callback;
+    document.getElementById('manual-qr-input').value = '';
     UI.modal.open('scanner-modal');
     await this.startCamera();
   },
@@ -205,12 +144,11 @@ const Scanner = {
       });
       const video = document.getElementById('qr-video');
       video.srcObject = this.stream;
-      video.play();
+      await video.play();
       this.scanning = true;
       this.startScanning();
     } catch (e) {
-      console.error('Camera error:', e);
-      UI.toast('Impossible d\'accéder à la caméra', 'error');
+      UI.toast('Impossible d\'accéder à la caméra. Utilisez la saisie manuelle.', 'warning');
     }
   },
 
@@ -218,33 +156,21 @@ const Scanner = {
     const video = document.getElementById('qr-video');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-
     const scan = () => {
-      if (!this.scanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        if (this.scanning) this.intervalId = requestAnimationFrame(scan);
-        return;
+      if (!this.scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        try {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+          if (code) { this.handleResult(code.data); return; }
+        } catch (_) {}
       }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      try {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert'
-        });
-
-        if (code) {
-          this.handleResult(code.data);
-          return;
-        }
-      } catch (e) {}
-
-      if (this.scanning) this.intervalId = requestAnimationFrame(scan);
+      this.rafId = requestAnimationFrame(scan);
     };
-
-    this.intervalId = requestAnimationFrame(scan);
+    this.rafId = requestAnimationFrame(scan);
   },
 
   handleResult(code) {
@@ -255,59 +181,50 @@ const Scanner = {
 
   stop() {
     this.scanning = false;
-    if (this.intervalId) cancelAnimationFrame(this.intervalId);
-    if (this.stream) {
-      this.stream.getTracks().forEach(t => t.stop());
-      this.stream = null;
-    }
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
     const video = document.getElementById('qr-video');
-    if (video) { video.srcObject = null; }
+    if (video) video.srcObject = null;
   }
 };
 
 // ============================================================
-// ROUTER - Navigation entre pages
+// ROUTER
 // ============================================================
 const App = {
   currentPage: null,
 
   pages: {
-    login: Pages.renderLogin,
-    dashboard: Pages.renderDashboard,
-    inventory: Pages.renderInventory,
-    qrcodes: Pages.renderQRCodes,
-    users: Pages.renderUsers,
-    logs: Pages.renderLogs
+    login: p => Pages.renderLogin(p),
+    dashboard: p => Pages.renderDashboard(p),
+    inventory: p => Pages.renderInventory(p),
+    qrcodes: p => Pages.renderQRCodes(p),
+    users: p => Pages.renderUsers(p),
+    logs: p => Pages.renderLogs(p)
   },
 
   async init() {
-    // Init auth
     const session = await Auth.init();
-
     if (session) {
+      this.showApp();
       this.navigate('dashboard');
     } else {
       this.navigate('login');
     }
-
-    // Event listeners globaux
     this.bindGlobalEvents();
+  },
+
+  showApp() {
+    document.getElementById('sidebar').style.display = '';
+    document.getElementById('qr-fab').style.display = '';
   },
 
   navigate(page, params = {}) {
     if (!this.pages[page]) return;
-
-    // Vérifications d'accès
-    if (page !== 'login' && !Auth.isAuthenticated()) {
-      this.navigate('login');
-      return;
-    }
-
+    if (page !== 'login' && !Auth.isAuthenticated()) { this.navigate('login'); return; }
     if ((page === 'users' || page === 'logs') && !Auth.isAdmin()) {
-      UI.toast('Accès réservé à l\'administrateur', 'error');
-      return;
+      UI.toast('Accès réservé à l\'administrateur', 'error'); return;
     }
-
     this.currentPage = page;
     this.updateSidebarActive(page);
     this.pages[page](params);
@@ -320,15 +237,17 @@ const App = {
   },
 
   bindGlobalEvents() {
-    // Sidebar toggle mobile
-    document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('open');
-      document.getElementById('sidebar-overlay').classList.toggle('open');
+    // Sidebar mobile
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebarToggle?.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
     });
-
-    document.getElementById('sidebar-overlay')?.addEventListener('click', () => {
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebar-overlay').classList.remove('open');
+    overlay?.addEventListener('click', () => {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
     });
 
     // Navigation sidebar
@@ -337,40 +256,29 @@ const App = {
         const page = item.dataset.page;
         if (page) {
           this.navigate(page);
-          // Ferme sidebar mobile
-          document.getElementById('sidebar').classList.remove('open');
-          document.getElementById('sidebar-overlay').classList.remove('open');
+          sidebar.classList.remove('open');
+          overlay.classList.remove('open');
         }
       });
     });
 
-    // Bouton scanner QR (FAB)
-    document.getElementById('qr-fab')?.addEventListener('click', () => {
-      this.openQRFlow();
-    });
+    // FAB scanner
+    document.getElementById('qr-fab')?.addEventListener('click', () => this.openQRFlow());
 
-    // Fermeture modal scanner
+    // Fermer scanner
     document.getElementById('scanner-close')?.addEventListener('click', () => {
       Scanner.stop();
       UI.modal.close('scanner-modal');
     });
 
-    // Saisie manuelle du QR
+    // Saisie manuelle QR
     document.getElementById('manual-qr-btn')?.addEventListener('click', () => {
       const val = document.getElementById('manual-qr-input').value.trim();
-      if (val) {
-        Scanner.stop();
-        UI.modal.close('scanner-modal');
-        this.handleQRCode(val);
-      } else {
-        UI.toast('Saisissez un code', 'warning');
-      }
+      if (val) { Scanner.stop(); UI.modal.close('scanner-modal'); this.handleQRCode(val); }
+      else UI.toast('Saisissez un code', 'warning');
     });
-
     document.getElementById('manual-qr-input')?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        document.getElementById('manual-qr-btn').click();
-      }
+      if (e.key === 'Enter') document.getElementById('manual-qr-btn').click();
     });
 
     // Déconnexion
@@ -379,7 +287,7 @@ const App = {
       if (confirmed) await Auth.logout();
     });
 
-    // Fermeture modales sur backdrop
+    // Fermeture modales sur clic backdrop
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
       backdrop.addEventListener('click', e => {
         if (e.target === backdrop) {
@@ -391,29 +299,22 @@ const App = {
   },
 
   openQRFlow() {
-    document.getElementById('manual-qr-input').value = '';
     Scanner.open(code => this.handleQRCode(code));
   },
 
   async handleQRCode(code) {
-    // Affiche un loading
-    UI.toast(`Recherche du code : ${code}`, 'default');
-
+    UI.toast(`Recherche : ${code}`, 'default', 1500);
     const { data: item } = await Items.getByQR(code);
 
     if (!item) {
-      // Objet inconnu → enregistrement
       Pages.renderRegisterItem(code);
     } else if (item.status === 'available') {
-      // Objet libre → prêt
       Pages.renderLoanForm(item);
     } else {
-      // Objet prêté → restitution
       const { data: loan } = await Loans.getActiveForItem(item.id);
       Pages.renderReturnForm(item, loan);
     }
   }
 };
 
-// Démarrage
 document.addEventListener('DOMContentLoaded', () => App.init());

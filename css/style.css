@@ -1223,3 +1223,200 @@ tbody tr:hover { background: var(--c-surface-2); }
     padding: var(--space-8) var(--space-5);
   }
 }
+
+/* ============================================================
+   CORRECTIFS ET NOUVEAUX COMPOSANTS
+   ============================================================ */
+
+/* Stats cliquables */
+.stat-card.stat-clickable {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--c-border);
+  text-align: left;
+  width: 100%;
+}
+.stat-card.stat-clickable:hover {
+  border-color: var(--c-accent-mid);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.stat-card.stat-clickable:active { transform: translateY(0); }
+
+/* QR code cliquable dans l'inventaire */
+.qr-code-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--c-accent);
+  background: var(--c-accent-light);
+  border: 1px solid rgba(27,58,107,0.15);
+  border-radius: var(--radius-sm);
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: inline-block;
+  text-align: left;
+}
+.qr-code-link:hover {
+  background: var(--c-accent);
+  color: white;
+}
+
+/* Onglets QR codes */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+.tab-btn {
+  padding: 8px 20px;
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-body);
+}
+.tab-btn:hover { color: var(--c-text-primary); background: var(--c-surface); }
+.tab-btn.active {
+  background: var(--c-surface);
+  color: var(--c-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Zone d'impression QR */
+.print-qr-area { min-height: 200px; }
+
+/* ============================================================
+   MOBILE - CORRECTIONS MAJEURES
+   ============================================================ */
+
+/* Empêche le débordement horizontal global */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+#app {
+  overflow-x: hidden;
+}
+
+.main-content {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Tables : scroll horizontal sur mobile au lieu de déborder */
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Page body ne déborde pas */
+.page-body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Filter bar en colonne sur petit écran */
+@media (max-width: 600px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-bar > * { width: 100% !important; min-width: unset !important; }
+  .search-input-wrapper { min-width: unset; }
+
+  /* Réduction padding page */
+  .page-header { padding: 0 12px; }
+  .page-body { padding: 12px; }
+  .card-body { padding: 12px; }
+  .card-header { padding: 12px 14px; }
+
+  /* Formulaire en colonne */
+  .form-row { grid-template-columns: 1fr; }
+
+  /* Modal en bas d'écran */
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal {
+    border-radius: 20px 20px 0 0;
+    max-height: 92vh;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* Stats 2 colonnes */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 22px; }
+  .stat-icon { width: 38px; height: 38px; font-size: 16px; }
+
+  /* Boutons groupés en colonne */
+  .btn-group { flex-wrap: wrap; }
+
+  /* Tab bar pleine largeur */
+  .tab-bar { width: 100%; }
+  .tab-btn { flex: 1; text-align: center; padding: 8px 10px; font-size: 13px; }
+
+  /* QR form row */
+  .form-row.qr-options { grid-template-columns: 1fr 1fr; }
+
+  /* Table : réduction padding cellules */
+  th, td { padding: 8px 10px; font-size: 12px; }
+
+  /* Masque colonne moins importante sur mobile */
+  .hide-mobile { display: none !important; }
+
+  /* FAB au dessus de la bannière PWA */
+  .qr-fab { bottom: 70px; }
+}
+
+@media (max-width: 360px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   IMPRESSION QR - Page A4 correcte
+   ============================================================ */
+@media print {
+  html, body { overflow: visible !important; }
+
+  .sidebar, .qr-fab, .page-header, .no-print,
+  .filter-bar, .tab-bar, .card-header,
+  #install-banner { display: none !important; }
+
+  .main-content { margin: 0 !important; }
+  body { background: white; }
+
+  .page-body { padding: 0 !important; }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .card-body { padding: 10mm !important; }
+
+  .print-qr-area {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    gap: 8mm !important;
+  }
+
+  .qr-item {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

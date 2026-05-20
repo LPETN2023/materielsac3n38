@@ -3,83 +3,125 @@
 // ============================================================
 
 // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET SUPABASE
-// Elles se trouvent dans : Supabase Dashboard > Settings > API
 const SUPABASE_URL = 'https://ryfjulxsknibszxlznau.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Zmp1bHhza25pYnN6eGx6bmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ3NDYsImV4cCI6MjA5NDgzMDc0Nn0.cgCF3t6X7FSo1GITUoWEkhZFC_IuNJ3oIHbfXEkBCho';
 
-// ============================================================
-// Initialisation du client Supabase
-// ============================================================
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false
+  }
+});
 
 // ============================================================
-// AUTH - Gestion de l'authentification
+// AUTH
 // ============================================================
 const Auth = {
   currentUser: null,
   currentProfile: null,
+  _refreshTimer: null,
 
   async init() {
     const { data: { session } } = await db.auth.getSession();
     if (session?.user) {
       await this.loadProfile(session.user);
+      this._scheduleRefresh(session);
     }
 
+    // onAuthStateChange : uniquement pour déconnexion et refresh de token
     db.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await this.loadProfile(session.user);
-        App.navigate('dashboard');
+      if (event === 'TOKEN_REFRESHED' && session?.user) {
+        this.currentUser = session.user;
+        this._scheduleRefresh(session);
+        // Re-render si page blanche (currentPage connu mais contenu vide)
+        const mc = document.getElementById('main-content');
+        if (App.currentPage && App.currentPage !== 'login' && mc && mc.children.length === 0) {
+          App.navigate(App.currentPage);
+        }
       } else if (event === 'SIGNED_OUT') {
         this.currentUser = null;
         this.currentProfile = null;
+        clearTimeout(this._refreshTimer);
         App.navigate('login');
+      }
+    });
+
+    // Récupération de session quand l'onglet redevient visible
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        const { data: { session } } = await db.auth.getSession();
+        if (!session && Auth.currentUser) {
+          // Session perdue
+          Auth.currentUser = null;
+          Auth.currentProfile = null;
+          App.navigate('login');
+        } else if (session?.user && App.currentPage !== 'login') {
+          // Re-render si page blanche
+          const mc = document.getElementById('main-content');
+          if (mc && mc.innerHTML.trim() === '') {
+            App.navigate(App.currentPage || 'dashboard');
+          }
+        }
       }
     });
 
     return session;
   },
 
+  // Planifie un refresh proactif du token 2 min avant expiration
+  _scheduleRefresh(session) {
+    clearTimeout(this._refreshTimer);
+    if (!session?.expires_at) return;
+    const expiresInMs = (session.expires_at * 1000) - Date.now() - 120000; // 2 min avant
+    if (expiresInMs > 0) {
+      this._refreshTimer = setTimeout(async () => {
+        await db.auth.refreshSession();
+      }, expiresInMs);
+    }
+  },
+
   async loadProfile(user) {
     this.currentUser = user;
     const { data } = await db.from('profiles').select('*').eq('id', user.id).single();
     this.currentProfile = data;
-
     if (data) {
-      // Vérifie que le compte est actif
       if (!data.is_active) {
         await this.logout();
-        UI.toast('Votre compte est désactivé. Contactez l\'administrateur.', 'error');
-        return;
+        UI.toast('Votre compte est désactivé.', 'error');
+        return false;
       }
-      // Met à jour l'UI
       UI.updateUserDisplay(data);
     }
+    return true;
   },
 
+  // FIX: login explicite sans dépendre de onAuthStateChange pour la navigation
   async login(email, password) {
     const { data, error } = await db.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    const ok = await this.loadProfile(data.user);
+    if (!ok) throw new Error('Compte désactivé');
+
+    this._scheduleRefresh(data.session);
     await Logs.write('LOGIN', null, null, { email });
     return data;
   },
 
   async logout() {
-    await Logs.write('LOGOUT', null, null, {});
+    try { await Logs.write('LOGOUT', null, null, {}); } catch (_) {}
+    clearTimeout(this._refreshTimer);
     await db.auth.signOut();
   },
 
-  isAdmin() {
-    return this.currentProfile?.role === 'admin';
-  },
-
-  isAuthenticated() {
-    return !!this.currentUser;
-  }
+  isAdmin() { return this.currentProfile?.role === 'admin'; },
+  isAuthenticated() { return !!this.currentUser; }
 };
 
 // ============================================================
-// LOGS - Système d'audit
+// LOGS
 // ============================================================
 const Logs = {
   async write(action, entityType, entityId, details = {}) {
@@ -92,37 +134,28 @@ const Logs = {
         entity_id: entityId?.toString() || null,
         details
       });
-    } catch (e) {
-      console.error('Log error:', e);
-    }
+    } catch (e) { console.error('Log error:', e); }
   }
 };
 
 // ============================================================
-// ITEMS - Gestion des objets
+// ITEMS
 // ============================================================
 const Items = {
   async getByQR(qrCode) {
-    const { data, error } = await db
-      .from('items')
-      .select('*')
-      .eq('qr_code', qrCode)
-      .single();
+    const { data, error } = await db.from('items').select('*').eq('qr_code', qrCode).single();
     return { data, error };
   },
 
   async getAll(filters = {}) {
     let query = db.from('items').select('*').order('created_at', { ascending: false });
-
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.search) {
       query = query.or(
         `qr_code.ilike.%${filters.search}%,type.ilike.%${filters.search}%,brand.ilike.%${filters.search}%,model.ilike.%${filters.search}%,storage_location.ilike.%${filters.search}%`
       );
     }
-
-    const { data, error } = await query;
-    return { data, error };
+    return await query;
   },
 
   async create(itemData) {
@@ -130,41 +163,31 @@ const Items = {
       ...itemData,
       created_by: Auth.currentUser.id
     }).select().single();
-
-    if (!error) {
-      await Logs.write('ITEM_CREATE', 'item', data.id, { qr_code: data.qr_code, type: data.type });
-    }
+    if (!error) await Logs.write('ITEM_CREATE', 'item', data.id, { qr_code: data.qr_code, type: data.type });
     return { data, error };
   },
 
   async update(id, updates) {
     const { data, error } = await db.from('items').update(updates).eq('id', id).select().single();
-    if (!error) {
-      await Logs.write('ITEM_UPDATE', 'item', id, updates);
-    }
+    if (!error) await Logs.write('ITEM_UPDATE', 'item', id, updates);
     return { data, error };
   },
 
   async delete(id) {
     const { error } = await db.from('items').delete().eq('id', id);
-    if (!error) {
-      await Logs.write('ITEM_DELETE', 'item', id, {});
-    }
+    if (!error) await Logs.write('ITEM_DELETE', 'item', id, {});
     return { error };
   }
 };
 
 // ============================================================
-// LOANS - Gestion des prêts
+// LOANS
 // ============================================================
 const Loans = {
   async getActiveForItem(itemId) {
-    const { data, error } = await db
-      .from('loans')
-      .select('*')
-      .eq('item_id', itemId)
-      .is('returned_at', null)
-      .single();
+    const { data, error } = await db.from('loans').select('*')
+      .eq('item_id', itemId).is('returned_at', null)
+      .order('created_at', { ascending: false }).limit(1).single();
     return { data, error };
   },
 
@@ -175,17 +198,12 @@ const Loans = {
     }).select().single();
 
     if (!error) {
-      // Met à jour le statut de l'objet
       await db.from('items').update({ status: 'loaned' }).eq('id', loanData.item_id);
       await Logs.write('LOAN_CREATE', 'loan', data.id, {
-        item_id: loanData.item_id,
-        loaned_to: loanData.loaned_to
+        item_id: loanData.item_id, loaned_to: loanData.loaned_to
       });
-      // Mémorise le nom de la personne
       await Autocomplete.savePerson(loanData.loaned_to);
-      if (loanData.judicial_operation) {
-        await Autocomplete.saveOperation(loanData.judicial_operation);
-      }
+      if (loanData.judicial_operation) await Autocomplete.saveOperation(loanData.judicial_operation);
     }
     return { data, error };
   },
@@ -204,18 +222,23 @@ const Loans = {
     return { data, error };
   },
 
-  async getHistory(itemId) {
+  // FIX: JOIN direct via Supabase pour le dashboard
+  async getActiveFull(limit = 10) {
     const { data, error } = await db
       .from('loans')
-      .select('*')
-      .eq('item_id', itemId)
-      .order('created_at', { ascending: false });
+      .select(`
+        id, loaned_to, loan_date, judicial_operation, notes, created_at,
+        items ( id, qr_code, type, brand, model, storage_location )
+      `)
+      .is('returned_at', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
     return { data, error };
   }
 };
 
 // ============================================================
-// AUTOCOMPLETE - Personnes et opérations
+// AUTOCOMPLETE
 // ============================================================
 const Autocomplete = {
   async getPersons(query = '') {
@@ -234,52 +257,59 @@ const Autocomplete = {
 
   async savePerson(name) {
     if (!name) return;
-    await db.from('known_persons').upsert(
-      { name, usage_count: 1 },
-      { onConflict: 'name', ignoreDuplicates: false }
-    );
-    // Incrémente le compteur si existe déjà
-    await db.rpc('increment_person_count', { person_name: name }).catch(() => {});
+    const { data: existing } = await db.from('known_persons').select('id, usage_count').eq('name', name).single();
+    if (existing) {
+      await db.from('known_persons').update({ usage_count: existing.usage_count + 1 }).eq('name', name);
+    } else {
+      await db.from('known_persons').insert({ name, usage_count: 1 });
+    }
   },
 
   async saveOperation(name) {
     if (!name) return;
-    await db.from('judicial_operations').upsert(
-      { name, usage_count: 1 },
-      { onConflict: 'name', ignoreDuplicates: false }
-    );
+    const { data: existing } = await db.from('judicial_operations').select('id, usage_count').eq('name', name).single();
+    if (existing) {
+      await db.from('judicial_operations').update({ usage_count: existing.usage_count + 1 }).eq('name', name);
+    } else {
+      await db.from('judicial_operations').insert({ name, usage_count: 1 });
+    }
   }
 };
 
 // ============================================================
-// USERS - Gestion des utilisateurs (admin)
+// USERS - FIX: utilise signUp au lieu de auth.admin.createUser
 // ============================================================
 const Users = {
   async getAll() {
-    const { data, error } = await db.from('profiles').select('*').order('created_at');
-    return { data, error };
+    return await db.from('profiles').select('*').order('created_at');
   },
 
+  // FIX: signUp fonctionne côté client sans service_role key
+  // Désactivez la confirmation email dans Supabase > Auth > Settings
   async create(email, password, fullName, role = 'user') {
-    // Crée le compte auth via la fonction admin
-    const { data: adminData, error: adminError } = await db.auth.admin.createUser({
+    // Crée le compte auth
+    const { data, error: signUpError } = await db.auth.signUp({
       email,
       password,
-      email_confirm: true
+      options: {
+        data: { full_name: fullName }
+      }
     });
-    if (adminError) throw adminError;
+    if (signUpError) throw signUpError;
+    if (!data.user) throw new Error('Erreur création compte');
 
-    // Crée le profil
+    // Insère le profil manuellement
     const { error: profileError } = await db.from('profiles').insert({
-      id: adminData.user.id,
-      username: email.split('@')[0],
+      id: data.user.id,
+      username: email.split('@')[0].toLowerCase(),
       full_name: fullName,
-      role
+      role,
+      is_active: true
     });
     if (profileError) throw profileError;
 
-    await Logs.write('USER_CREATE', 'user', adminData.user.id, { email, role });
-    return adminData.user;
+    await Logs.write('USER_CREATE', 'user', data.user.id, { email, role });
+    return data.user;
   },
 
   async toggle(userId, isActive) {
@@ -296,7 +326,7 @@ const Users = {
 };
 
 // ============================================================
-// UTILS - Utilitaires
+// UTILS
 // ============================================================
 const Utils = {
   formatDate(date) {
@@ -308,7 +338,7 @@ const Utils = {
 
   formatDateTime(date) {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('fr-FR', {
+    return new Date(date).toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
@@ -326,6 +356,10 @@ const Utils = {
 
   escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 };
