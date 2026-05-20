@@ -216,6 +216,7 @@ const App = {
   },
 
   showApp() {
+    document.getElementById('main-content').style.marginLeft = '';
     document.getElementById('sidebar').style.display = '';
     document.getElementById('qr-fab').style.display = '';
   },

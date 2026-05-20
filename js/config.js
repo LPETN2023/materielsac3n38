@@ -6,8 +6,16 @@ const SUPABASE_URL = 'https://ryfjulxsknibszxlznau.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Zmp1bHhza25pYnN6eGx6bmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ3NDYsImV4cCI6MjA5NDgzMDc0Nn0.cgCF3t6X7FSo1GITUoWEkhZFC_IuNJ3oIHbfXEkBCho';
 
 const { createClient } = supabase;
+
+// Client principal (session admin persistée)
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+});
+
+// FIX: Client secondaire SANS persistance de session
+// Utilisé uniquement pour créer des comptes sans écraser la session admin
+const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
 
 // ============================================================
@@ -185,7 +193,6 @@ const Loans = {
     return { data, error };
   },
 
-  // JOIN complet pour le dashboard
   async getActiveFull(limit = 50) {
     return await db.from('loans')
       .select(`id, loaned_to, loan_date, expected_return_date, judicial_operation, notes, created_at,
@@ -230,7 +237,7 @@ const Autocomplete = {
 };
 
 // ============================================================
-// ITEM TYPES - Liste configurable de types de matériel
+// ITEM TYPES
 // ============================================================
 const ItemTypes = {
   async getAll() {
@@ -248,35 +255,39 @@ const ItemTypes = {
     const { error } = await db.from('item_types').delete().eq('id', id);
     if (!error) await Logs.write('ITEMTYPE_DELETE', 'item_type', id, {});
     return { error };
-  },
-
-  async reorder(id, sortOrder) {
-    return await db.from('item_types').update({ sort_order: sortOrder }).eq('id', id);
   }
 };
 
 // ============================================================
-// USERS
+// USERS - FIX: dbSignup évite d'écraser la session admin
 // ============================================================
 const Users = {
   async getAll() { return await db.from('profiles').select('*').order('created_at'); },
 
   async create(email, password, fullName, role = 'user') {
-	  if (!email.toLowerCase().endsWith('@gendarmerie.interieur.gouv.fr')) {
+    // 1. Vérification domaine en premier
+    if (!email.toLowerCase().endsWith('@gendarmerie.interieur.gouv.fr')) {
       throw new Error('Seuls les emails @gendarmerie.interieur.gouv.fr sont autorisés');
     }
-    const { data, error: signUpError } = await db.auth.signUp({
-      email, password, options: { data: { full_name: fullName } }
+
+    // 2. Création auth via le client secondaire (ne touche pas à la session admin)
+    const { data, error: signUpError } = await dbSignup.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } }
     });
     if (signUpError) throw signUpError;
-    if (!data.user) throw new Error('Erreur création compte');
+    if (!data.user) throw new Error('Erreur lors de la création du compte');
 
+    // 3. Insertion du profil via le client admin (session admin intacte)
     const { error: profileError } = await db.from('profiles').insert({
       id: data.user.id,
       username: email.split('@')[0].toLowerCase(),
-      full_name: fullName, role, is_active: true
+      full_name: fullName,
+      role,
+      is_active: true
     });
-    if (profileError) throw profileError;
+    if (profileError) throw new Error('Compte auth créé mais profil non enregistré : ' + profileError.message);
 
     await Logs.write('USER_CREATE', 'user', data.user.id, { email, role });
     return data.user;
@@ -319,12 +330,10 @@ const Utils = {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   },
-  // Vérifie si une date est dépassée
   isOverdue(dateStr) {
     if (!dateStr) return false;
     return new Date(dateStr) < new Date(new Date().toDateString());
   },
-  // Jours de retard
   daysOverdue(dateStr) {
     if (!dateStr) return 0;
     const diff = new Date(new Date().toDateString()) - new Date(dateStr);

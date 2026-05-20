@@ -19,6 +19,7 @@ const Pages = {
   // ============================================================
   renderLogin() {
     document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main-content').style.marginLeft = '0';
     document.getElementById('qr-fab').style.display = 'none';
     Pages.getMainContent().innerHTML = `
       <div class="login-page">
@@ -864,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await Users.create(email,pass,name,role);
       UI.toast('Compte créé !','success'); UI.modal.close('add-user-modal'); Pages._loadUsers();
     } catch(err) {
-      const msg=err.message?.includes('already')?'Email déjà utilisé':err.message?.includes('email')?'Désactivez la confirmation email dans Supabase':'Erreur : '+err.message;
+      const msg = err.message?.includes('autorisés') ? err.message : err.message?.includes('already') ? 'Cet email est déjà utilisé' : 'Erreur : ' + err.message;
       UI.toast(msg,'error');
     }
     UI.setLoading(btn,false);
