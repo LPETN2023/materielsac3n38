@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS - Application principale (corrigé)
+// APP.JS
 // ============================================================
 
 const UI = {
@@ -195,13 +195,13 @@ const App = {
   currentPage: null,
 
   pages: {
-    login: p => Pages.renderLogin(p),
+    login:     p => Pages.renderLogin(p),
     dashboard: p => Pages.renderDashboard(p),
     inventory: p => Pages.renderInventory(p),
-    qrcodes: p => Pages.renderQRCodes(p),
-    settings: p => Pages.renderSettings(p),
-    users: p => Pages.renderUsers(p),
-    logs: p => Pages.renderLogs(p)
+    qrcodes:   p => Pages.renderQRCodes(p),
+    settings:  p => Pages.renderSettings(p),
+    users:     p => Pages.renderUsers(p),
+    logs:      p => Pages.renderLogs(p)
   },
 
   async init() {
@@ -224,7 +224,7 @@ const App = {
   navigate(page, params = {}) {
     if (!this.pages[page]) return;
     if (page !== 'login' && !Auth.isAuthenticated()) { this.navigate('login'); return; }
-    if ((page === 'users' || page === 'logs') && !Auth.isAdmin()) {
+    if ((page === 'users' || page === 'logs' || page === 'settings') && !Auth.isAdmin()) {
       UI.toast('Accès réservé à l\'administrateur', 'error'); return;
     }
     this.currentPage = page;
@@ -239,20 +239,25 @@ const App = {
   },
 
   bindGlobalEvents() {
-    // Sidebar mobile
-    const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    sidebarToggle?.addEventListener('click', () => {
-      sidebar.classList.toggle('open');
-      overlay.classList.toggle('open');
+
+    // FIX: Délégation d'événement sur document pour le bouton toggle
+    // Fonctionne même quand le bouton est recréé à chaque navigation
+    document.addEventListener('click', e => {
+      if (e.target.closest('#sidebar-toggle')) {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('open');
+      }
     });
+
+    // Fermeture sidebar via overlay
     overlay?.addEventListener('click', () => {
       sidebar.classList.remove('open');
       overlay.classList.remove('open');
     });
 
-    // Navigation sidebar
+    // Navigation sidebar (éléments fixes, binding direct OK)
     document.querySelectorAll('.sidebar-nav-item').forEach(item => {
       item.addEventListener('click', () => {
         const page = item.dataset.page;
@@ -307,7 +312,6 @@ const App = {
   async handleQRCode(code) {
     UI.toast(`Recherche : ${code}`, 'default', 1500);
     const { data: item } = await Items.getByQR(code);
-
     if (!item) {
       Pages.renderRegisterItem(code);
     } else if (item.status === 'available') {

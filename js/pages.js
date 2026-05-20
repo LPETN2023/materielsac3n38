@@ -5,14 +5,6 @@ const Pages = {
 
   getMainContent() { return document.getElementById('main-content'); },
 
-  _bindSidebarToggle() {
-    setTimeout(() => {
-      document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
-        document.getElementById('sidebar-overlay').classList.toggle('open');
-      });
-    }, 0);
-  },
 
   // ============================================================
   // LOGIN
@@ -107,7 +99,6 @@ const Pages = {
         </div>
       </div>`;
 
-    Pages._bindSidebarToggle();
 
     const [allItemsRes, loansRes] = await Promise.all([Items.getAll(), Loans.getActiveFull(100)]);
     const items = allItemsRes.data || [];
@@ -234,7 +225,6 @@ const Pages = {
         <div id="inventory-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
 
-    Pages._bindSidebarToggle();
 
     const load = async () => {
       const search = document.getElementById('inv-search')?.value.trim() || '';
@@ -475,7 +465,6 @@ const Pages = {
         </div>
       </div>`;
 
-    Pages._bindSidebarToggle();
     await Pages._loadLinkedQRCodes();
     document.getElementById('refresh-qr-btn')?.addEventListener('click', Pages._loadLinkedQRCodes);
     document.getElementById('qr-size')?.addEventListener('change', Pages._loadLinkedQRCodes);
@@ -578,7 +567,6 @@ const Pages = {
         </div>
         <div id="users-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
-    Pages._bindSidebarToggle();
     await Pages._loadUsers();
     document.getElementById('add-user-btn')?.addEventListener('click', () => {
       ['new-user-email','new-user-name','new-user-pass'].forEach(id => document.getElementById(id).value='');
@@ -646,7 +634,6 @@ const Pages = {
         </div>
       </div>`;
 
-    Pages._bindSidebarToggle();
     await Pages._loadTypes();
 
     document.getElementById('add-type-btn')?.addEventListener('click', () => {
@@ -727,7 +714,6 @@ const Pages = {
         <div id="logs-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
 
-    Pages._bindSidebarToggle();
 
     const loadLogs = async () => {
       const search = document.getElementById('log-search')?.value.trim()||'';

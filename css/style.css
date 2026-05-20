@@ -1558,7 +1558,7 @@ html, body {
 /* Mobile : sidebar remonte pour que le bouton déconnexion reste visible */
 @media (max-width: 768px) {
   .pwa-banner-visible .sidebar {
-    padding-bottom: 64px;
+    padding-bottom: 90px;
   }
   /* FAB déjà géré plus haut (bottom: 80px) */
 }
