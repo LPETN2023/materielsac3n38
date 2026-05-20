@@ -334,15 +334,14 @@ function initDomainAutofill(inputEl) {
 
   const applyDomain = () => {
     const val = inputEl.value.trim();
-    if (val.length > 0 && !val.includes('@')) {
+    // N'applique que si au moins 3 caractères et pas de @ déjà présent
+    if (val.length >= 3 && !val.includes('@')) {
       inputEl.value = val + DOMAIN;
     }
   };
 
-  // Applique quand l'utilisateur quitte le champ
   inputEl.addEventListener('blur', applyDomain);
 
-  // Applique aussi sur Tab et Entrée sans quitter
   inputEl.addEventListener('keydown', e => {
     if (e.key === 'Tab' || e.key === 'Enter') {
       applyDomain();

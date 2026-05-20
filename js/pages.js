@@ -62,8 +62,8 @@ const Pages = {
     passEl.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     emailEl.addEventListener('keydown', e => { if (e.key === 'Enter') passEl.focus(); });
     setTimeout(() => {
-      emailEl.focus();
       initDomainAutofill(emailEl);
+      emailEl.focus();
     }, 100);
   },
 
