@@ -18,7 +18,7 @@ const Pages = {
         <div class="login-card">
           <div class="login-header">
             <div class="login-logo">🔐</div>
-            <h1 class="login-title">Inventaire Judiciaire</h1>
+            <h1 class="login-title">Inventaire Materiels</h1>
             <p class="login-subtitle">Accès réservé aux personnels autorisés</p>
           </div>
           <div id="login-error" class="alert alert-danger hidden">

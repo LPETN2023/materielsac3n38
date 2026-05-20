@@ -1,7 +1,7 @@
 {
-  "name": "Inventaire Judiciaire",
+  "name": "Inventaire Materiels",
   "short_name": "Inventaire",
-  "description": "Système de gestion d'inventaire judiciaire sécurisé",
+  "description": "Système de gestion d'inventaire materiels sécurisé",
   "start_url": "/materielsac3n38/",
   "scope": "/materielsac3n38/",
   "display": "standalone",

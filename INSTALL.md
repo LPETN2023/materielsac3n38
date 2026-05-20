@@ -1,4 +1,4 @@
-# 📋 Guide d'installation — Inventaire Judiciaire
+# 📋 Guide d'installation — Inventaire Materiels
 
 ## 🗂 Structure des fichiers
 
