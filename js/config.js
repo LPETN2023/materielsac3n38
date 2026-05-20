@@ -4,8 +4,8 @@
 
 // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET SUPABASE
 // Elles se trouvent dans : Supabase Dashboard > Settings > API
-const SUPABASE_URL = 'https://wpttvualgaumwswxxvny.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_pElrrAcV6bomcUgSaWkEIA_cVaQnE-a';
+const SUPABASE_URL = 'https://ryfjulxsknibszxlznau.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_he7j_ayJTRNN-T4EAP_2Xw_EuUMc7_x';
 
 // ============================================================
 // Initialisation du client Supabase
