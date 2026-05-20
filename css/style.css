@@ -1521,3 +1521,27 @@ html, body {
 .main-content:has(.login-page) {
   margin-left: 0 !important;
 }
+
+/* ============================================================
+   FIX: Bandeau installation PWA
+   - Ne chevauche pas le FAB (bouton caméra)
+   - Ne chevauche pas la sidebar
+   ============================================================ */
+#install-banner {
+  /* Commence après la sidebar sur desktop */
+  left: var(--sidebar-w) !important;
+  /* Coins arrondis en haut à gauche puisqu'il ne part plus du bord */
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* Sur mobile la sidebar est cachée, le bandeau prend toute la largeur */
+@media (max-width: 768px) {
+  #install-banner {
+    left: 0 !important;
+    border-radius: 0;
+  }
+  /* FAB encore plus haut pour ne pas être sous le bandeau */
+  .qr-fab {
+    bottom: 80px !important;
+  }
+}
