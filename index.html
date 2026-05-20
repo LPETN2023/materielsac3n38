@@ -4,28 +4,19 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="theme-color" content="#1B3A6B"/>
-  <meta name="description" content="Système de gestion d'inventaire judiciaire sécurisé"/>
   <title>Inventaire Judiciaire</title>
   <link rel="manifest" href="manifest.json"/>
-  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
-  <link rel="icon" type="image/png" href="icons/icon-192.png"/>
   <link rel="stylesheet" href="css/style.css"/>
-
-  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- jsQR pour scan QR -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <!-- QRCode.js pour génération -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
 <div id="app">
 
-  <!-- ============================================================
-       SIDEBAR
-       ============================================================ -->
-  <aside class="sidebar" id="sidebar">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar" style="display:none">
     <div class="sidebar-logo">
       <div class="sidebar-logo-icon">🔐</div>
       <div class="sidebar-logo-text">
@@ -33,48 +24,34 @@
         <span class="sidebar-logo-sub">Système judiciaire</span>
       </div>
     </div>
-
     <nav class="sidebar-nav">
       <div class="sidebar-section-label">Navigation</div>
-
       <div class="sidebar-nav-item" data-page="dashboard">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-        </svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Tableau de bord
       </div>
-
       <div class="sidebar-nav-item" data-page="inventory">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-        </svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
         Inventaire
       </div>
-
       <div class="sidebar-nav-item" data-page="qrcodes">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-        </svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
         QR Codes
       </div>
-
       <div class="sidebar-section-label admin-only">Administration</div>
-
       <div class="sidebar-nav-item admin-only" data-page="users">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-        </svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Comptes
       </div>
-
+      <div class="sidebar-nav-item admin-only" data-page="settings">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Paramètres
+      </div>
       <div class="sidebar-nav-item admin-only" data-page="logs">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-        </svg>
-        Journal d'activité
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        Journal
       </div>
     </nav>
-
     <div class="sidebar-footer">
       <div class="sidebar-user" id="sidebar-user">
         <div class="sidebar-avatar" id="sidebar-avatar">?</div>
@@ -82,45 +59,27 @@
           <div class="sidebar-user-name" id="sidebar-user-name">Chargement...</div>
           <div class="sidebar-user-role" id="sidebar-user-role"></div>
         </div>
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" style="opacity:0.5;flex-shrink:0">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-        </svg>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" style="opacity:0.4;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       </div>
     </div>
   </aside>
 
-  <!-- Overlay mobile -->
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-  <!-- ============================================================
-       CONTENU PRINCIPAL
-       ============================================================ -->
   <div class="main-content" id="main-content">
-    <!-- Contenu injecté par JS -->
     <div style="display:flex;align-items:center;justify-content:center;height:100vh">
       <div class="spinner" style="width:40px;height:40px;border-width:3px"></div>
     </div>
   </div>
 
-  <!-- ============================================================
-       BOUTON SCANNER QR (FAB)
-       ============================================================ -->
-  <button class="qr-fab" id="qr-fab" title="Scanner un QR code">
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
-    </svg>
+  <button class="qr-fab" id="qr-fab" title="Scanner un QR code" style="display:none">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
   </button>
+</div>
 
-</div><!-- #app -->
-
-<!-- ============================================================
-     TOAST CONTAINER
-     ============================================================ -->
 <div id="toast-container"></div>
 
-<!-- ============================================================
-     MODAL: SCANNER QR
-     ============================================================ -->
+<!-- MODAL SCANNER -->
 <div class="modal-backdrop scanner-modal" id="scanner-modal">
   <div class="modal modal-sm">
     <div class="modal-header">
@@ -131,30 +90,19 @@
       <div id="qr-video-container">
         <video id="qr-video" playsinline muted></video>
         <div class="scanner-overlay">
-          <div class="scanner-frame">
-            <span></span>
-            <div class="scanner-line"></div>
-          </div>
+          <div class="scanner-frame"><span></span><div class="scanner-line"></div></div>
         </div>
       </div>
       <div class="scanner-divider">ou saisir manuellement</div>
       <div style="display:flex;gap:8px">
-        <input
-          type="text"
-          id="manual-qr-input"
-          class="form-control"
-          placeholder="Code QR (ex: INV-ABC123)"
-          style="flex:1"
-        />
+        <input type="text" id="manual-qr-input" class="form-control" placeholder="Code QR (ex: INV-ABC123)" style="flex:1"/>
         <button class="btn btn-primary" id="manual-qr-btn">OK</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: ENREGISTRER UN OBJET
-     ============================================================ -->
+<!-- MODAL ENREGISTRER OBJET -->
 <div class="modal-backdrop" id="register-modal">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -171,7 +119,10 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Type de matériel <span class="required">*</span></label>
-            <input type="text" id="register-type" class="form-control" placeholder="Ordinateur portable, téléphone..." required/>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="register-type" class="form-control" placeholder="Ordinateur, téléphone..." required style="flex:1"/>
+              <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="Pages.openTypePicker('register-type')" title="Choisir dans la liste">📋 Liste</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Marque</label>
@@ -184,8 +135,8 @@
             <input type="text" id="register-model" class="form-control" placeholder="iPhone 14, MacBook Pro..."/>
           </div>
           <div class="form-group">
-            <label class="form-label">Lieu de stockage <span class="required">*</span></label>
-            <input type="text" id="register-location" class="form-control" placeholder="Armoire A, Salle 102..." required/>
+            <label class="form-label">Lieu de stockage</label>
+            <input type="text" id="register-location" class="form-control" placeholder="Armoire A, Salle 102..."/>
           </div>
         </div>
         <div class="form-group">
@@ -195,17 +146,13 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('register-modal')">Annuler</button>
-        <button type="submit" class="btn btn-primary" id="register-submit">
-          ✅ Enregistrer l'objet
-        </button>
+        <button type="submit" class="btn btn-primary" id="register-submit">✅ Enregistrer</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: PRÊT
-     ============================================================ -->
+<!-- MODAL PRÊT -->
 <div class="modal-backdrop" id="loan-modal">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -215,8 +162,7 @@
     <form id="loan-form">
       <div class="modal-body">
         <input type="hidden" id="loan-item-id"/>
-        <div id="loan-item-info" style="margin-bottom:var(--space-4)"></div>
-
+        <div id="loan-item-info"></div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Prêté à <span class="required">*</span></label>
@@ -229,14 +175,21 @@
             <input type="date" id="loan-date" class="form-control" required/>
           </div>
         </div>
-
-        <div class="form-group">
-          <label class="form-label">Opération judiciaire</label>
-          <div class="autocomplete-wrapper">
-            <input type="text" id="loan-operation" class="form-control" placeholder="Nom ou numéro d'opération"/>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">
+              Date de restitution prévue
+              <span class="form-hint" style="font-weight:400;margin-left:6px">(optionnelle)</span>
+            </label>
+            <input type="date" id="loan-expected-return" class="form-control"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Opération judiciaire</label>
+            <div class="autocomplete-wrapper">
+              <input type="text" id="loan-operation" class="form-control" placeholder="Nom ou numéro d'opération"/>
+            </div>
           </div>
         </div>
-
         <div class="form-group">
           <label class="form-label">Observations / divers</label>
           <textarea id="loan-notes" class="form-control" placeholder="Notes complémentaires..."></textarea>
@@ -244,17 +197,13 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('loan-modal')">Annuler</button>
-        <button type="submit" class="btn btn-primary" id="loan-submit">
-          ✅ Valider le prêt
-        </button>
+        <button type="submit" class="btn btn-primary" id="loan-submit">✅ Valider le prêt</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: RESTITUTION
-     ============================================================ -->
+<!-- MODAL RESTITUTION -->
 <div class="modal-backdrop" id="return-modal">
   <div class="modal">
     <div class="modal-header">
@@ -265,13 +214,11 @@
       <div class="modal-body">
         <input type="hidden" id="return-loan-id"/>
         <input type="hidden" id="return-item-id"/>
-        <div id="return-item-info" style="margin-bottom:var(--space-4)"></div>
-
+        <div id="return-item-info"></div>
         <div class="form-group">
           <label class="form-label">Date de restitution</label>
           <input type="date" id="return-date" class="form-control" readonly/>
         </div>
-
         <div class="form-group">
           <label class="form-label">Observations</label>
           <textarea id="return-notes" class="form-control" placeholder="État de l'objet, remarques..."></textarea>
@@ -279,17 +226,13 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('return-modal')">Annuler</button>
-        <button type="submit" class="btn btn-success" id="return-submit">
-          ✅ Confirmer la restitution
-        </button>
+        <button type="submit" class="btn btn-success" id="return-submit">✅ Confirmer la restitution</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: MODIFIER OBJET
-     ============================================================ -->
+<!-- MODAL MODIFIER OBJET -->
 <div class="modal-backdrop" id="edit-modal">
   <div class="modal modal-lg">
     <div class="modal-header">
@@ -306,7 +249,10 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Type de matériel <span class="required">*</span></label>
-            <input type="text" id="edit-type" class="form-control" required/>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="edit-type" class="form-control" required style="flex:1"/>
+              <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="Pages.openTypePicker('edit-type')" title="Choisir dans la liste">📋</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Marque</label>
@@ -319,8 +265,8 @@
             <input type="text" id="edit-model" class="form-control"/>
           </div>
           <div class="form-group">
-            <label class="form-label">Lieu de stockage <span class="required">*</span></label>
-            <input type="text" id="edit-location" class="form-control" required/>
+            <label class="form-label">Lieu de stockage</label>
+            <input type="text" id="edit-location" class="form-control"/>
           </div>
         </div>
         <div class="form-row">
@@ -339,17 +285,13 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('edit-modal')">Annuler</button>
-        <button type="submit" class="btn btn-primary" id="edit-submit">
-          💾 Enregistrer les modifications
-        </button>
+        <button type="submit" class="btn btn-primary" id="edit-submit">💾 Enregistrer</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: CRÉER UN COMPTE (ADMIN)
-     ============================================================ -->
+<!-- MODAL CRÉER COMPTE -->
 <div class="modal-backdrop" id="add-user-modal">
   <div class="modal">
     <div class="modal-header">
@@ -358,10 +300,6 @@
     </div>
     <form id="add-user-form">
       <div class="modal-body">
-        <div class="alert alert-info" style="margin-bottom:var(--space-4)">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Le compte sera créé immédiatement et pourra se connecter avec ces identifiants.
-        </div>
         <div class="form-group">
           <label class="form-label">Nom complet <span class="required">*</span></label>
           <input type="text" id="new-user-name" class="form-control" placeholder="Prénom Nom" required/>
@@ -371,8 +309,8 @@
           <input type="email" id="new-user-email" class="form-control" placeholder="prenom.nom@service.fr" required/>
         </div>
         <div class="form-group">
-          <label class="form-label">Mot de passe temporaire <span class="required">*</span></label>
-          <input type="password" id="new-user-pass" class="form-control" placeholder="Minimum 8 caractères" minlength="8" required/>
+          <label class="form-label">Mot de passe <span class="required">*</span></label>
+          <input type="password" id="new-user-pass" class="form-control" placeholder="Minimum 6 caractères" minlength="6" required/>
         </div>
         <div class="form-group">
           <label class="form-label">Rôle</label>
@@ -384,25 +322,52 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('add-user-modal')">Annuler</button>
-        <button type="submit" class="btn btn-primary" id="add-user-submit">
-          ✅ Créer le compte
-        </button>
+        <button type="submit" class="btn btn-primary" id="add-user-submit">✅ Créer le compte</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- ============================================================
-     MODAL: CONFIRMATION
-     ============================================================ -->
-<div class="modal-backdrop" id="confirm-modal">
+<!-- MODAL AJOUTER TYPE -->
+<div class="modal-backdrop" id="add-type-modal">
   <div class="modal modal-sm">
     <div class="modal-header">
-      <span class="modal-title">⚠️ Confirmation</span>
+      <span class="modal-title">➕ Ajouter un type</span>
+      <button class="modal-close" onclick="UI.modal.close('add-type-modal')">✕</button>
     </div>
-    <div class="modal-body">
-      <p id="confirm-message" style="font-size:15px"></p>
+    <form id="add-type-form">
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Nom du type</label>
+          <input type="text" id="new-type-name" class="form-control" placeholder="Ex: Drone, Radiotéléphone..." required/>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="UI.modal.close('add-type-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="add-type-submit">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL PICKER DE TYPES -->
+<div class="modal-backdrop" id="type-picker-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">📋 Choisir un type</span>
+      <button class="modal-close" onclick="UI.modal.close('type-picker-modal')">✕</button>
     </div>
+    <div class="modal-body" style="padding:8px">
+      <div id="type-picker-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMATION -->
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header"><span class="modal-title">⚠️ Confirmation</span></div>
+    <div class="modal-body"><p id="confirm-message" style="font-size:15px"></p></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="confirm-no">Annuler</button>
       <button class="btn btn-danger" id="confirm-yes">Confirmer</button>
@@ -410,36 +375,16 @@
   </div>
 </div>
 
-<!-- ============================================================
-     SCRIPTS
-     ============================================================ -->
 <script src="js/config.js"></script>
 <script src="js/pages.js"></script>
 <script src="js/app.js"></script>
 <script src="js/pwa.js"></script>
 
-<!-- Bannière d'installation PWA -->
-<div id="install-banner" style="
-  display:none;
-  position:fixed;
-  bottom:0;left:0;right:0;
-  background:var(--c-accent);
-  color:white;
-  padding:12px 20px;
-  align-items:center;
-  gap:12px;
-  z-index:999;
-  border-top:2px solid rgba(255,255,255,0.2);
-">
+<!-- Bannière PWA -->
+<div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:var(--c-accent);color:white;padding:12px 20px;align-items:center;gap:12px;z-index:999;border-top:2px solid rgba(255,255,255,0.2)">
   <span style="flex:1;font-size:14px;font-weight:500">📱 Installer l'application sur cet appareil</span>
-  <button onclick="deferredPrompt?.prompt();document.getElementById('install-banner').style.display='none'"
-    style="background:white;color:var(--c-accent);border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px">
-    Installer
-  </button>
-  <button onclick="document.getElementById('install-banner').style.display='none'"
-    style="background:transparent;color:rgba(255,255,255,0.7);border:none;padding:8px;cursor:pointer;font-size:18px">
-    ✕
-  </button>
+  <button onclick="deferredPrompt?.prompt();document.getElementById('install-banner').style.display='none'" style="background:white;color:var(--c-accent);border:none;padding:8px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px">Installer</button>
+  <button onclick="document.getElementById('install-banner').style.display='none'" style="background:transparent;color:rgba(255,255,255,0.7);border:none;padding:8px;cursor:pointer;font-size:18px">✕</button>
 </div>
 
 </body>

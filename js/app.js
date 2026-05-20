@@ -199,6 +199,7 @@ const App = {
     dashboard: p => Pages.renderDashboard(p),
     inventory: p => Pages.renderInventory(p),
     qrcodes: p => Pages.renderQRCodes(p),
+    settings: p => Pages.renderSettings(p),
     users: p => Pages.renderUsers(p),
     logs: p => Pages.renderLogs(p)
   },

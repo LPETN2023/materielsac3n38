@@ -1420,3 +1420,98 @@ html, body {
     break-inside: avoid;
   }
 }
+
+/* ============================================================
+   AJOUTS v3 - Retards, types, QR options
+   ============================================================ */
+
+/* Ligne en retard dans le tableau */
+.row-overdue {
+  background: #FFF5F5 !important;
+}
+.row-overdue:hover { background: #FFE8E8 !important; }
+
+/* Label retard */
+.overdue-label {
+  color: var(--c-danger);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Badge compteur retard sur l'onglet */
+.overdue-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-danger);
+  color: white;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* Stat card en retard */
+.stat-card.stat-overdue {
+  border-color: #FCA5A5;
+  background: #FFF5F5;
+}
+
+/* Type picker */
+.type-picker-item {
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background var(--transition);
+  margin-bottom: 2px;
+}
+.type-picker-item:hover {
+  background: var(--c-accent-light);
+  color: var(--c-accent);
+}
+
+/* Grille options QR */
+.qr-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+  align-items: flex-end;
+}
+
+@media (max-width: 600px) {
+  .qr-options-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Onglets dashboard */
+.tab-bar .tab-btn {
+  position: relative;
+}
+
+/* Tabs dans card header */
+.card-header .tab-bar {
+  border-bottom: 2px solid var(--c-border);
+  border-radius: 0;
+  padding: 0;
+  gap: 0;
+  width: 100%;
+}
+.card-header .tab-btn {
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 18px;
+}
+.card-header .tab-btn.active {
+  border-bottom-color: var(--c-accent);
+  color: var(--c-accent);
+  background: none;
+  box-shadow: none;
+}
