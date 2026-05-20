@@ -5,7 +5,7 @@
 // ⚠️ REMPLACEZ CES VALEURS PAR CELLES DE VOTRE PROJET SUPABASE
 // Elles se trouvent dans : Supabase Dashboard > Settings > API
 const SUPABASE_URL = 'https://ryfjulxsknibszxlznau.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_he7j_ayJTRNN-T4EAP_2Xw_EuUMc7_x';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Zmp1bHhza25pYnN6eGx6bmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ3NDYsImV4cCI6MjA5NDgzMDc0Nn0.cgCF3t6X7FSo1GITUoWEkhZFC_IuNJ3oIHbfXEkBCho';
 
 // ============================================================
 // Initialisation du client Supabase
