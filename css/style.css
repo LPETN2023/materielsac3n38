@@ -1519,20 +1519,6 @@ html, body {
 /* ============================================================
    FIX: Page login - supprime le margin-left de la sidebar
    ============================================================ */
-.login-page-active .main-content,
 .main-content:has(.login-page) {
   margin-left: 0 !important;
-}
-
-/* Fallback pour navigateurs sans :has() */
-.main-content .login-page {
-  margin-left: calc(-1 * var(--sidebar-w));
-  width: 100vw;
-}
-
-@media (max-width: 768px) {
-  .main-content .login-page {
-    margin-left: 0;
-    width: 100%;
-  }
 }
