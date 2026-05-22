@@ -10,6 +10,58 @@ const Pages = {
   // LOGIN
   // ============================================================
   // Affiché quand l'utilisateur arrive via un lien de reset Supabase
+  renderPasswordRecovery() {
+    Pages.getMainContent().innerHTML = `
+      <div class="login-page">
+        <div class="login-card">
+          <div class="login-header">
+            <div class="login-logo">🔑</div>
+            <h1 class="login-title">Nouveau mot de passe</h1>
+            <p class="login-subtitle">Choisissez un nouveau mot de passe pour votre compte</p>
+          </div>
+          <div id="rec-error" class="alert alert-danger hidden">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span id="rec-error-msg"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
+            <input type="password" id="rec-new" class="form-control" placeholder="Minimum 6 caractères" minlength="6" autofocus/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmer <span class="required">*</span></label>
+            <input type="password" id="rec-confirm" class="form-control" placeholder="••••••••" minlength="6"/>
+          </div>
+          <button class="btn btn-primary btn-full btn-lg" id="rec-btn">✅ Enregistrer le mot de passe</button>
+        </div>
+      </div>`;
+
+    const btn = document.getElementById('rec-btn');
+    const errorEl = document.getElementById('rec-error');
+    const errorMsg = document.getElementById('rec-error-msg');
+
+    const doReset = async () => {
+      const newPass = document.getElementById('rec-new').value;
+      const confirm = document.getElementById('rec-confirm').value;
+      errorEl.classList.add('hidden');
+      if (newPass.length < 6) { errorMsg.textContent = 'Minimum 6 caractères'; errorEl.classList.remove('hidden'); return; }
+      if (newPass !== confirm) { errorMsg.textContent = 'Les mots de passe ne correspondent pas'; errorEl.classList.remove('hidden'); return; }
+      UI.setLoading(btn, true);
+      const { error } = await db.auth.updateUser({ password: newPass });
+      if (error) {
+        errorMsg.textContent = error.message;
+        errorEl.classList.remove('hidden');
+        UI.setLoading(btn, false);
+        return;
+      }
+      await db.auth.signOut();
+      UI.toast('Mot de passe modifié ! Reconnectez-vous.', 'success');
+      App.init();
+    };
+
+    btn.addEventListener('click', doReset);
+    document.getElementById('rec-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') doReset(); });
+  },
+
   renderLogin() {
     document.getElementById('sidebar').style.display = 'none';
     document.getElementById('main-content').style.marginLeft = '0';

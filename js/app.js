@@ -336,4 +336,27 @@ const App = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', async () => {
+  // Détecte un lien de reset Supabase PKCE (?code= dans l'URL)
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+
+  if (code) {
+    // Nettoie l'URL immédiatement
+    history.replaceState(null, '', window.location.pathname);
+
+    // Échange le code contre une session Supabase
+    const { error } = await db.auth.exchangeCodeForSession(code);
+
+    if (!error) {
+      // Session établie — affiche le formulaire de nouveau mot de passe
+      document.getElementById('sidebar').style.display = 'none';
+      document.getElementById('qr-fab').style.display = 'none';
+      document.getElementById('main-content').style.marginLeft = '0';
+      Pages.renderPasswordRecovery();
+      return;
+    }
+  }
+
+  App.init();
+});
