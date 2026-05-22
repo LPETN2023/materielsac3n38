@@ -337,19 +337,37 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Détecte un lien de reset Supabase PKCE (?code= dans l'URL)
+  // Supabase implicit flow : #access_token=...&type=recovery dans le hash
+  const hash = window.location.hash;
+  const hashParams = new URLSearchParams(hash.replace('#', ''));
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+  const type = hashParams.get('type');
+
+  // Supabase PKCE flow : ?code=... dans l'URL
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
 
-  if (code) {
-    // Nettoie l'URL immédiatement
+  if ((type === 'recovery' && accessToken) || code) {
+    // Nettoie l'URL
     history.replaceState(null, '', window.location.pathname);
 
-    // Échange le code contre une session Supabase
-    const { error } = await db.auth.exchangeCodeForSession(code);
+    let sessionOk = false;
 
-    if (!error) {
-      // Session établie — affiche le formulaire de nouveau mot de passe
+    if (accessToken) {
+      // Implicit flow : établit la session avec le token
+      const { error } = await db.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || ''
+      });
+      sessionOk = !error;
+    } else if (code) {
+      // PKCE flow : échange le code contre une session
+      const { error } = await db.auth.exchangeCodeForSession(code);
+      sessionOk = !error;
+    }
+
+    if (sessionOk) {
       document.getElementById('sidebar').style.display = 'none';
       document.getElementById('qr-fab').style.display = 'none';
       document.getElementById('main-content').style.marginLeft = '0';
