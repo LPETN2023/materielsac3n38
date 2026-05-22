@@ -600,21 +600,20 @@ const Pages = {
     items.forEach((item, i) => {
       const qrCanvas = item.querySelector('canvas');
       const qrImg = item.querySelector('img');
-      const labelEl = item.querySelector('.qr-code-label');
 
-      // Récupère le code QR
-      const codeEl = labelEl?.querySelector('.font-mono');
-      const code = codeEl?.textContent?.trim() || `qrcode-${i+1}`;
+      // Données stockées via data-* pour fiabilité
+      const code = item.dataset.code || `qrcode-${i+1}`;
+      const label1 = item.dataset.label1 || '';
+      const label2 = item.dataset.label2 || '';
+      const label3 = item.dataset.label3 || '';
       const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
 
-      // Récupère les lignes de texte du label
+      // Lignes de texte à afficher
       const labelLines = [];
-      if (labelEl) {
-        labelEl.querySelectorAll('div').forEach(div => {
-          const t = div.textContent?.trim();
-          if (t) labelLines.push(t);
-        });
-      }
+      if (label1) labelLines.push(label1);
+      if (label2) labelLines.push(label2);
+      if (label3) labelLines.push('📍 ' + label3);
+      labelLines.push(code); // Le code est toujours affiché en dernier
 
       // Obtient l'image QR en canvas
       let qrImage = null;
@@ -761,6 +760,13 @@ const Pages = {
         label3?`<div style="font-size:10px;color:var(--c-text-muted);margin-bottom:3px">📍 ${Utils.escapeHtml(label3)}</div>`:'',
         `<div class="font-mono" style="font-size:9px;color:var(--c-text-muted);letter-spacing:0.02em">${Utils.escapeHtml(code)}</div>`
       ].join('');
+
+      // Stocke les données pour l'export ZIP
+      wrapper.dataset.code = code;
+      wrapper.dataset.label1 = label1 || '';
+      wrapper.dataset.label2 = label2 || '';
+      wrapper.dataset.label3 = label3 || '';
+      wrapper.dataset.qrSize = size;
 
       wrapper.appendChild(qrDiv);
       wrapper.appendChild(label);
