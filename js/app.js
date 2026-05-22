@@ -398,29 +398,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hash = window.location.hash;
   const search = window.location.search;
   const hashParams = new URLSearchParams(hash.replace('#', ''));
-  const searchParams = new URLSearchParams(search);
-
-  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.has('code');
+  const isRecovery = hashParams.get('type') === 'recovery' || new URLSearchParams(search).has('code');
 
   if (isRecovery) {
-    // Avec detectSessionInUrl:true, Supabase échange automatiquement le code/token
-    // et émet PASSWORD_RECOVERY. On écoute avant tout le reste.
-    const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        subscription.unsubscribe();
-        history.replaceState(null, '', window.location.pathname);
-        document.getElementById('sidebar').style.display = 'none';
-        document.getElementById('qr-fab').style.display = 'none';
+    // Attend le premier événement auth capturé dès la création du client
+    const { event } = await window._firstAuthEvent;
+
+    history.replaceState(null, '', window.location.pathname);
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('qr-fab').style.display = 'none';
+
+    if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+      Pages.renderPasswordRecovery();
+    } else {
+      // Timeout ou événement inattendu : tente quand même de récupérer la session
+      const { data: { session } } = await db.auth.getSession();
+      if (session) {
         Pages.renderPasswordRecovery();
-      } else if (event === 'SIGNED_IN' && isRecovery) {
-        // Certaines versions de Supabase émettent SIGNED_IN au lieu de PASSWORD_RECOVERY
-        subscription.unsubscribe();
-        history.replaceState(null, '', window.location.pathname);
-        document.getElementById('sidebar').style.display = 'none';
-        document.getElementById('qr-fab').style.display = 'none';
-        Pages.renderPasswordRecovery();
+      } else {
+        App.init();
       }
-    });
+    }
     return;
   }
 

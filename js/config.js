@@ -10,8 +10,20 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true  // FIX: nécessaire pour les liens de recovery
+    detectSessionInUrl: true
   }
+});
+
+// FIX TIMING: capture le premier événement auth IMMÉDIATEMENT après création du client
+// PASSWORD_RECOVERY est émis pendant l'init du client si un token recovery est dans l'URL
+// On doit écouter AVANT que DOMContentLoaded ne se déclenche
+window._firstAuthEvent = new Promise(resolve => {
+  const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
+    subscription.unsubscribe();
+    resolve({ event, session });
+  });
+  // Timeout 3s : si aucun événement, on continue normalement
+  setTimeout(() => resolve({ event: 'TIMEOUT', session: null }), 3000);
 });
 // Client secondaire sans persistance de session (création de comptes)
 const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
