@@ -230,13 +230,7 @@ const App = {
     const session = await Auth.init();
     if (session) {
       this.showApp();
-      // Vérifie si l'utilisateur doit changer son mot de passe
-      if (Auth.mustChangePassword()) {
-        this.navigate('dashboard');
-        setTimeout(() => Pages.showForcePasswordChange(), 300);
-      } else {
-        this.navigate('dashboard');
-      }
+      this.navigate('dashboard');
     } else {
       this.navigate('login');
     }
@@ -252,15 +246,8 @@ const App = {
   navigate(page, params = {}) {
     if (!this.pages[page]) return;
     if (page !== 'login' && !Auth.isAuthenticated()) { this.navigate('login'); return; }
-    if ((page === 'users' || page === 'logs') && !Auth.isAdmin()) {
+    if ((page === 'users' || page === 'logs' || page === 'settings') && !Auth.isAdmin()) {
       UI.toast('Accès réservé à l\'administrateur', 'error'); return;
-    }
-    // Bloque la navigation si changement de MDP obligatoire
-    if (Auth.mustChangePassword() && page !== 'login') {
-      if (page !== 'settings' && page !== 'dashboard') {
-        Pages.showForcePasswordChange();
-        return;
-      }
     }
     this.currentPage = page;
     this.updateSidebarActive(page);
@@ -277,7 +264,6 @@ const App = {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
 
-    // Délégation d'événement pour sidebar-toggle (survit aux re-rendus)
     document.addEventListener('click', e => {
       if (e.target.closest('#sidebar-toggle')) {
         sidebar.classList.toggle('open');
@@ -326,57 +312,13 @@ const App = {
       backdrop.addEventListener('click', e => {
         if (e.target === backdrop) {
           if (backdrop.id === 'scanner-modal') Scanner.stop();
-          // Ne ferme pas le modal de changement de MDP obligatoire
-          if (backdrop.id !== 'force-password-modal') UI.modal.close(backdrop.id);
+          UI.modal.close(backdrop.id);
         }
       });
-    });
-
-    // Handler changement de mot de passe (propre)
-    document.getElementById('change-password-form')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      const btn = document.getElementById('change-password-submit');
-      const oldPass = document.getElementById('cp-old').value;
-      const newPass = document.getElementById('cp-new').value;
-      const confirm = document.getElementById('cp-confirm').value;
-      if (newPass !== confirm) { UI.toast('Les nouveaux mots de passe ne correspondent pas', 'warning'); return; }
-      if (newPass.length < 8) { UI.toast('Le mot de passe doit faire au moins 8 caractères', 'warning'); return; }
-      UI.setLoading(btn, true);
-      try {
-        await Auth.changePassword(oldPass, newPass);
-        UI.toast('Mot de passe modifié avec succès !', 'success');
-        UI.modal.close('change-password-modal');
-        document.getElementById('change-password-form').reset();
-      } catch (err) {
-        UI.toast(err.message, 'error');
-      }
-      UI.setLoading(btn, false);
-    });
-
-    // Handler changement de MDP obligatoire
-    document.getElementById('force-password-form')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      const btn = document.getElementById('force-password-submit');
-      const oldPass = document.getElementById('fp-old').value;
-      const newPass = document.getElementById('fp-new').value;
-      const confirm = document.getElementById('fp-confirm').value;
-      if (newPass !== confirm) { UI.toast('Les mots de passe ne correspondent pas', 'warning'); return; }
-      if (newPass.length < 8) { UI.toast('Minimum 8 caractères', 'warning'); return; }
-      UI.setLoading(btn, true);
-      try {
-        await Auth.changePassword(oldPass, newPass);
-        UI.toast('Mot de passe défini avec succès !', 'success');
-        UI.modal.close('force-password-modal');
-        document.body.style.overflow = '';
-      } catch (err) {
-        UI.toast(err.message, 'error');
-        UI.setLoading(btn, false);
-      }
     });
   },
 
   openQRFlow() {
-    if (Auth.mustChangePassword()) { Pages.showForcePasswordChange(); return; }
     Scanner.open(code => this.handleQRCode(code));
   },
 
@@ -394,33 +336,4 @@ const App = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const hash = window.location.hash;
-  const search = window.location.search;
-  const hashParams = new URLSearchParams(hash.replace('#', ''));
-  const isRecovery = hashParams.get('type') === 'recovery' || new URLSearchParams(search).has('code');
-
-  if (isRecovery) {
-    // Attend le premier événement auth capturé dès la création du client
-    const { event } = await window._firstAuthEvent;
-
-    history.replaceState(null, '', window.location.pathname);
-    document.getElementById('sidebar').style.display = 'none';
-    document.getElementById('qr-fab').style.display = 'none';
-
-    if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
-      Pages.renderPasswordRecovery();
-    } else {
-      // Timeout ou événement inattendu : tente quand même de récupérer la session
-      const { data: { session } } = await db.auth.getSession();
-      if (session) {
-        Pages.renderPasswordRecovery();
-      } else {
-        App.init();
-      }
-    }
-    return;
-  }
-
-  App.init();
-});
+document.addEventListener('DOMContentLoaded', () => App.init());

@@ -7,25 +7,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
+  auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
-
-// FIX TIMING: capture le premier événement auth IMMÉDIATEMENT après création du client
-// PASSWORD_RECOVERY est émis pendant l'init du client si un token recovery est dans l'URL
-// On doit écouter AVANT que DOMContentLoaded ne se déclenche
-window._firstAuthEvent = new Promise(resolve => {
-  const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
-    subscription.unsubscribe();
-    resolve({ event, session });
-  });
-  // Timeout 3s : si aucun événement, on continue normalement
-  setTimeout(() => resolve({ event: 'TIMEOUT', session: null }), 3000);
-});
-// Client secondaire sans persistance de session (création de comptes)
+// Client secondaire sans persistance (création de comptes sans écraser la session admin)
 const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
@@ -110,24 +94,8 @@ const Auth = {
     await db.auth.signOut();
   },
 
-  // Changement de mot de passe : vérifie l'ancien en se re-authentifiant
-  async changePassword(oldPassword, newPassword) {
-    const email = this.currentUser.email;
-    // Vérifie l'ancien mot de passe via un client temporaire
-    const { error: checkError } = await dbSignup.auth.signInWithPassword({ email, password: oldPassword });
-    if (checkError) throw new Error('Mot de passe actuel incorrect');
-    // Met à jour avec le nouveau
-    const { error: updateError } = await db.auth.updateUser({ password: newPassword });
-    if (updateError) throw updateError;
-    // Retire le flag must_change_password si présent
-    await db.from('profiles').update({ must_change_password: false }).eq('id', this.currentUser.id);
-    this.currentProfile.must_change_password = false;
-    await Logs.write('PASSWORD_CHANGE', 'user', this.currentUser.id, {});
-  },
-
   isAdmin() { return this.currentProfile?.role === 'admin'; },
-  isAuthenticated() { return !!this.currentUser; },
-  mustChangePassword() { return !!this.currentProfile?.must_change_password; }
+  isAuthenticated() { return !!this.currentUser; }
 };
 
 // ============================================================
@@ -294,7 +262,7 @@ const ItemTypes = {
 const Users = {
   async getAll() { return await db.from('profiles').select('*').order('created_at'); },
 
-  async create(email, password, fullName, role = 'user', mustChange = true) {
+  async create(email, password, fullName, role = 'user') {
     if (!email.toLowerCase().endsWith('@gendarmerie.interieur.gouv.fr')) {
       throw new Error('Seuls les emails @gendarmerie.interieur.gouv.fr sont autorisés');
     }
@@ -309,24 +277,12 @@ const Users = {
       username: email.split('@')[0].toLowerCase(),
       full_name: fullName,
       role,
-      is_active: true,
-      must_change_password: mustChange  // Force le changement à la première connexion
+      is_active: true
     });
     if (profileError) throw new Error('Compte créé mais profil non enregistré : ' + profileError.message);
 
     await Logs.write('USER_CREATE', 'user', data.user.id, { email, role });
     return data.user;
-  },
-
-  // Reset mot de passe par admin : met le flag + stocke le mot de passe temporaire en clair
-  // L'admin doit AUSSI mettre à jour le mot de passe dans Supabase Dashboard > Auth > Users
-  async resetPassword(userId, tempPassword) {
-    const { error } = await db.from('profiles').update({
-      must_change_password: true,
-      temp_password_hint: tempPassword  // Stocké pour affichage à l'admin uniquement
-    }).eq('id', userId);
-    await Logs.write('PASSWORD_RESET', 'user', userId, {});
-    return { error };
   },
 
   async toggle(userId, isActive) {
@@ -361,10 +317,6 @@ const Utils = {
     const ts = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${prefix}-${ts}-${rand}`;
-  },
-  generateTempPassword() {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   },
   escapeHtml(str) {
     if (!str) return '';

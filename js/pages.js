@@ -10,82 +10,6 @@ const Pages = {
   // LOGIN
   // ============================================================
   // Affiché quand l'utilisateur arrive via un lien de reset Supabase
-  renderPasswordRecovery() {
-    document.getElementById('sidebar').style.display = 'none';
-    document.getElementById('qr-fab').style.display = 'none';
-    document.getElementById('main-content').style.marginLeft = '0';
-
-    Pages.getMainContent().innerHTML = `
-      <div class="login-page">
-        <div class="login-card">
-          <div class="login-header">
-            <div class="login-logo">🔑</div>
-            <h1 class="login-title">Nouveau mot de passe</h1>
-            <p class="login-subtitle">Définissez votre nouveau mot de passe</p>
-          </div>
-          <div id="recovery-error" class="alert alert-danger hidden">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span id="recovery-error-msg"></span>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
-            <input type="password" id="recovery-new" class="form-control" placeholder="Minimum 8 caractères" minlength="8" required/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Confirmer le mot de passe <span class="required">*</span></label>
-            <input type="password" id="recovery-confirm" class="form-control" placeholder="••••••••" minlength="8" required/>
-          </div>
-          <button class="btn btn-primary btn-full btn-lg" id="recovery-btn">✅ Définir mon mot de passe</button>
-        </div>
-      </div>`;
-
-    const newEl = document.getElementById('recovery-new');
-    const confirmEl = document.getElementById('recovery-confirm');
-    const btn = document.getElementById('recovery-btn');
-    const errorEl = document.getElementById('recovery-error');
-    const errorMsg = document.getElementById('recovery-error-msg');
-
-    const doReset = async () => {
-      const newPass = newEl.value;
-      const confirm = confirmEl.value;
-
-      if (newPass.length < 8) {
-        errorMsg.textContent = 'Le mot de passe doit faire au moins 8 caractères';
-        errorEl.classList.remove('hidden'); return;
-      }
-      if (newPass !== confirm) {
-        errorMsg.textContent = 'Les mots de passe ne correspondent pas';
-        errorEl.classList.remove('hidden'); return;
-      }
-
-      errorEl.classList.add('hidden');
-      UI.setLoading(btn, true);
-
-      const { error } = await db.auth.updateUser({ password: newPass });
-      if (error) {
-        errorMsg.textContent = 'Erreur : ' + error.message;
-        errorEl.classList.remove('hidden');
-        UI.setLoading(btn, false);
-        return;
-      }
-
-      // Retire le flag must_change_password si présent
-      const { data: { user } } = await db.auth.getUser();
-      if (user) {
-        await db.from('profiles').update({ must_change_password: false }).eq('id', user.id);
-      }
-
-      UI.toast('Mot de passe défini avec succès !', 'success');
-      // Redirige vers la page de connexion
-      await db.auth.signOut();
-      App.navigate('login');
-    };
-
-    btn.addEventListener('click', doReset);
-    confirmEl.addEventListener('keydown', e => { if (e.key === 'Enter') doReset(); });
-    setTimeout(() => newEl.focus(), 100);
-  },
-
   renderLogin() {
     document.getElementById('sidebar').style.display = 'none';
     document.getElementById('main-content').style.marginLeft = '0';
@@ -743,7 +667,6 @@ const Pages = {
             <div style="width:32px;height:32px;border-radius:50%;background:var(--c-accent-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--c-accent);flex-shrink:0">${user.full_name.charAt(0).toUpperCase()}</div>
             <div>
               <div style="font-weight:500">${Utils.escapeHtml(user.full_name)}</div>
-              ${user.must_change_password ? '<div class="text-xs" style="color:var(--c-warning)">⚠️ Doit changer son MDP</div>' : ''}
             </div>
           </div>
         </td>
@@ -754,7 +677,6 @@ const Pages = {
         <td>${user.id!==Auth.currentUser.id?`<div class="btn-group">
           <button class="btn btn-ghost btn-sm" onclick="Pages._toggleUser('${user.id}',${!user.is_active})">${user.is_active?'🔒':'🔓'}</button>
           <button class="btn btn-ghost btn-sm" onclick="Pages._changeRole('${user.id}','${user.role==='admin'?'user':'admin'}')">${user.role==='admin'?'⬇ User':'⬆ Admin'}</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--c-warning)" onclick="Pages._resetPassword('${user.id}','${Utils.escapeHtml(user.full_name)}','${Utils.escapeHtml(user.username)}')">🔑 Reset MDP</button>
         </div>`:'<span class="text-xs text-muted">(Vous)</span>'}</td>
       </tr>`).join('')}</tbody></table></div>`;
   },
@@ -770,62 +692,18 @@ const Pages = {
     if (error) UI.toast('Erreur','error'); else { UI.toast('Rôle modifié','success'); Pages._loadUsers(); }
   },
 
-  async _resetPassword(userId, fullName, username) {
-    const tempPass = Utils.generateTempPassword();
-    // Affiche le mot de passe temporaire à l'admin
-    document.getElementById('reset-user-name').textContent = fullName;
-    document.getElementById('reset-temp-password').textContent = tempPass;
-    document.getElementById('reset-supabase-email').textContent = username + '@gendarmerie.interieur.gouv.fr';
-    document.getElementById('reset-confirm-btn').onclick = async () => {
-      const { error } = await Users.resetPassword(userId, tempPass);
-      if (error) { UI.toast('Erreur : ' + error.message, 'error'); return; }
-      UI.toast('Flag "doit changer MDP" activé', 'success');
-      UI.modal.close('reset-password-modal');
-      Pages._loadUsers();
-    };
-    UI.modal.open('reset-password-modal');
-  },
-
 
   // ============================================================
   // PARAMÈTRES - Types de matériel
   // ============================================================
   async renderSettings() {
     const content = Pages.getMainContent();
-    const isActive = Auth.currentProfile?.is_active;
     content.innerHTML = `
       <div class="page-header">
         <button class="sidebar-toggle" id="sidebar-toggle"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h1 class="page-header-title">Paramètres</h1>
       </div>
       <div class="page-body">
-
-        <!-- CHANGEMENT DE MOT DE PASSE -->
-        <div class="card" style="margin-bottom:20px">
-          <div class="card-header"><span class="card-title">🔑 Changer mon mot de passe</span></div>
-          <div class="card-body">
-            ${!isActive ? '<div class="alert alert-danger">Votre compte est désactivé.</div>' : `
-            <form id="change-password-form">
-              <div class="form-group">
-                <label class="form-label">Mot de passe actuel <span class="required">*</span></label>
-                <input type="password" id="cp-old" class="form-control" placeholder="••••••••" required/>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
-                  <input type="password" id="cp-new" class="form-control" placeholder="Minimum 8 caractères" minlength="8" required/>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Confirmer le nouveau <span class="required">*</span></label>
-                  <input type="password" id="cp-confirm" class="form-control" placeholder="••••••••" minlength="8" required/>
-                </div>
-              </div>
-              <button type="submit" class="btn btn-primary" id="change-password-submit">💾 Modifier mon mot de passe</button>
-            </form>`}
-          </div>
-        </div>
-
-        <!-- TYPES DE MATÉRIEL (admin seulement) -->
         <div class="card admin-only">
           <div class="card-header">
             <span class="card-title">📋 Types de matériel</span>
@@ -838,28 +716,6 @@ const Pages = {
         </div>
       </div>`;
 
-    if (isActive) {
-      // Handler changement MDP inline dans la page settings
-      document.getElementById('change-password-form')?.addEventListener('submit', async e => {
-        e.preventDefault();
-        const btn = document.getElementById('change-password-submit');
-        const oldPass = document.getElementById('cp-old').value;
-        const newPass = document.getElementById('cp-new').value;
-        const confirm = document.getElementById('cp-confirm').value;
-        if (newPass !== confirm) { UI.toast('Les mots de passe ne correspondent pas', 'warning'); return; }
-        if (newPass.length < 8) { UI.toast('Minimum 8 caractères', 'warning'); return; }
-        UI.setLoading(btn, true);
-        try {
-          await Auth.changePassword(oldPass, newPass);
-          UI.toast('Mot de passe modifié avec succès !', 'success');
-          e.target.reset();
-        } catch (err) {
-          UI.toast(err.message, 'error');
-        }
-        UI.setLoading(btn, false);
-      });
-    }
-
     if (Auth.isAdmin()) {
       await Pages._loadTypes();
       document.getElementById('add-type-btn')?.addEventListener('click', () => {
@@ -870,38 +726,7 @@ const Pages = {
     }
   },
 
-  // Modal de changement de mot de passe obligatoire
-  showForcePasswordChange() {
-    document.getElementById('fp-old').value = '';
-    document.getElementById('fp-new').value = '';
-    document.getElementById('fp-confirm').value = '';
-    UI.modal.open('force-password-modal');
-  },
-
-  async _loadTypes() {
-    const types = await ItemTypes.getAll();
-    const el = document.getElementById('types-list');
-    if (!el) return;
-
-    if (!types.length) {
-      el.innerHTML='<div class="empty-state"><p class="empty-state-text">Aucun type défini</p></div>'; return;
-    }
-
-    el.innerHTML = `<div class="table-wrapper"><table>
-      <thead><tr><th>Type de matériel</th><th>Actions</th></tr></thead>
-      <tbody>${types.map(t=>`<tr>
-        <td style="font-weight:500">${Utils.escapeHtml(t.name)}</td>
-        <td><button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}','${Utils.escapeHtml(t.name)}')">🗑 Supprimer</button></td>
-      </tr>`).join('')}</tbody></table></div>`;
-  },
-
-  async _deleteType(id, name) {
-    if (!await UI.confirm(`Supprimer le type "${name}" ?`)) return;
-    const { error } = await ItemTypes.delete(id);
-    if (error) UI.toast('Erreur', 'error'); else { UI.toast('Type supprimé', 'success'); Pages._loadTypes(); }
-  },
-
-  // Ouvre le picker de types sur le formulaire d'enregistrement
+  // Ouvre le picker  // Ouvre le picker de types sur le formulaire d'enregistrement
   async openTypePicker(targetId) {
     const types = await ItemTypes.getAll();
     const list = document.getElementById('type-picker-list');
