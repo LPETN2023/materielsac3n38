@@ -643,8 +643,11 @@ const Pages = {
     // Largeur minimale d'une cellule "à droite" = QR + gap + texte minimum (130px)
     const minCellW = size + 10 + 130;
 
+    // Attribut pour cibler en CSS print
+    container.dataset.labelPos = labelPos;
+    container.dataset.qrSize = size;
+
     if (labelPos === 'right') {
-      // auto-fill : le navigateur calcule le bon nombre de colonnes selon la place disponible
       container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,minmax(${minCellW}px,1fr));gap:8px`;
     } else {
       container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:10px`;
@@ -654,7 +657,7 @@ const Pages = {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
       if (labelPos === 'right') {
-        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0;overflow:hidden`;
+        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0`;
       } else {
         wrapper.style.cssText = `flex-direction:column;align-items:center;gap:4px;width:${size+16}px`;
       }
