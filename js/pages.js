@@ -9,6 +9,83 @@ const Pages = {
   // ============================================================
   // LOGIN
   // ============================================================
+  // Affiché quand l'utilisateur arrive via un lien de reset Supabase
+  renderPasswordRecovery() {
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('qr-fab').style.display = 'none';
+    document.getElementById('main-content').style.marginLeft = '0';
+
+    Pages.getMainContent().innerHTML = `
+      <div class="login-page">
+        <div class="login-card">
+          <div class="login-header">
+            <div class="login-logo">🔑</div>
+            <h1 class="login-title">Nouveau mot de passe</h1>
+            <p class="login-subtitle">Définissez votre nouveau mot de passe</p>
+          </div>
+          <div id="recovery-error" class="alert alert-danger hidden">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span id="recovery-error-msg"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
+            <input type="password" id="recovery-new" class="form-control" placeholder="Minimum 8 caractères" minlength="8" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmer le mot de passe <span class="required">*</span></label>
+            <input type="password" id="recovery-confirm" class="form-control" placeholder="••••••••" minlength="8" required/>
+          </div>
+          <button class="btn btn-primary btn-full btn-lg" id="recovery-btn">✅ Définir mon mot de passe</button>
+        </div>
+      </div>`;
+
+    const newEl = document.getElementById('recovery-new');
+    const confirmEl = document.getElementById('recovery-confirm');
+    const btn = document.getElementById('recovery-btn');
+    const errorEl = document.getElementById('recovery-error');
+    const errorMsg = document.getElementById('recovery-error-msg');
+
+    const doReset = async () => {
+      const newPass = newEl.value;
+      const confirm = confirmEl.value;
+
+      if (newPass.length < 8) {
+        errorMsg.textContent = 'Le mot de passe doit faire au moins 8 caractères';
+        errorEl.classList.remove('hidden'); return;
+      }
+      if (newPass !== confirm) {
+        errorMsg.textContent = 'Les mots de passe ne correspondent pas';
+        errorEl.classList.remove('hidden'); return;
+      }
+
+      errorEl.classList.add('hidden');
+      UI.setLoading(btn, true);
+
+      const { error } = await db.auth.updateUser({ password: newPass });
+      if (error) {
+        errorMsg.textContent = 'Erreur : ' + error.message;
+        errorEl.classList.remove('hidden');
+        UI.setLoading(btn, false);
+        return;
+      }
+
+      // Retire le flag must_change_password si présent
+      const { data: { user } } = await db.auth.getUser();
+      if (user) {
+        await db.from('profiles').update({ must_change_password: false }).eq('id', user.id);
+      }
+
+      UI.toast('Mot de passe défini avec succès !', 'success');
+      // Redirige vers la page de connexion
+      await db.auth.signOut();
+      App.navigate('login');
+    };
+
+    btn.addEventListener('click', doReset);
+    confirmEl.addEventListener('keydown', e => { if (e.key === 'Enter') doReset(); });
+    setTimeout(() => newEl.focus(), 100);
+  },
+
   renderLogin() {
     document.getElementById('sidebar').style.display = 'none';
     document.getElementById('main-content').style.marginLeft = '0';

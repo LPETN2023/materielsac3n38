@@ -394,4 +394,21 @@ const App = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => {
+  // Détecte un lien de reset mot de passe Supabase (type=recovery dans le hash)
+  const hash = window.location.hash;
+  if (hash && hash.includes('type=recovery')) {
+    // Supabase a déjà parsé le token et établi une session temporaire
+    // On attend que la session soit prête puis on affiche le formulaire
+    db.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Nettoie l'URL
+        history.replaceState(null, '', window.location.pathname);
+        // Affiche le formulaire de définition du nouveau mot de passe
+        Pages.renderPasswordRecovery();
+      }
+    });
+  }
+
+  App.init();
+});
