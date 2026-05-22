@@ -231,7 +231,7 @@ const Pages = {
                 : '<span class="text-muted text-xs">—</span>'}
             </td>
             <td>
-              <button class="btn btn-success btn-sm" onclick="Pages._quickReturn('${loan.id}','${item?.id}','${Utils.escapeHtml(item?.storage_location||'')}')">✅</button>
+              <button class="btn btn-success btn-sm" onclick="Pages._quickReturn('${loan.id}','${item?.id}','${Utils.escapeHtml(item?.storage_location||'Non précisé')}')">✅</button>
             </td>
           </tr>`;
         }).join('')}</tbody></table></div>`;
@@ -305,7 +305,7 @@ const Pages = {
             <div style="font-weight:500">${Utils.escapeHtml(item.brand||'—')}</div>
             <div class="text-xs text-muted">${Utils.escapeHtml(item.model||'')}</div>
           </td>
-          <td class="text-sm hide-mobile">${Utils.escapeHtml(item.storage_location||'—')}</td>
+          <td class="text-sm hide-mobile">${Utils.escapeHtml(item.storage_location||'Non précisé')}</td>
           <td><span class="badge badge-${item.status==='available'?'available':'loaned'}">${item.status==='available'?'Disponible':'En prêt'}</span></td>
           <td>
             <div class="btn-group">
@@ -346,7 +346,7 @@ const Pages = {
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <div>
           <strong>${Utils.escapeHtml(item.type)}${item.brand?' — '+Utils.escapeHtml(item.brand):''}${item.model?' '+Utils.escapeHtml(item.model):''}</strong><br>
-          <span class="text-xs">QR : <code>${Utils.escapeHtml(item.qr_code)}</code>${item.storage_location?' · Stockage : '+Utils.escapeHtml(item.storage_location):''}</span>
+          <span class="text-xs">QR : <code>${Utils.escapeHtml(item.qr_code)}</code>${' · Stockage : '+(item.storage_location?Utils.escapeHtml(item.storage_location):'Non précisé')}</span>
         </div>
       </div>`;
     document.getElementById('loan-to').value = '';
@@ -380,7 +380,7 @@ const Pages = {
           ${loan?.judicial_operation?`<span class="text-xs">Opération : ${Utils.escapeHtml(loan.judicial_operation)}</span><br>`:''}
           ${loan?.loan_date?`<span class="text-xs">Depuis le : ${Utils.formatDate(loan.loan_date)}</span><br>`:''}
           ${loan?.expected_return_date?`<span class="text-xs ${od?'overdue-label':''}">Restitution prévue : ${Utils.formatDate(loan.expected_return_date)}${od?` (+${Utils.daysOverdue(loan.expected_return_date)} j de retard)`:''}</span><br>`:''}
-          <span class="text-xs" style="font-weight:600;color:var(--c-accent)">📍 Remettre à : ${Utils.escapeHtml(item.storage_location||'—')}</span>
+          <span class="text-xs" style="font-weight:600;color:var(--c-accent)">📍 Remettre à : ${Utils.escapeHtml(item.storage_location||'Non précisé')}</span>
         </div>
       </div>`;
     UI.modal.open('return-modal');
@@ -787,8 +787,8 @@ const Pages = {
           </div>
         </div>
 
-        <!-- TYPES DE MATÉRIEL (admin seulement) -->
-        <div class="card admin-only">
+        <!-- TYPES DE MATÉRIEL -->
+        <div class="card">
           <div class="card-header">
             <span class="card-title">📋 Types de matériel</span>
             <button class="btn btn-primary btn-sm" id="add-type-btn">+ Ajouter</button>
@@ -859,17 +859,38 @@ const Pages = {
       }
     });
 
-    if (Auth.isAdmin()) {
-      await Pages._loadTypes();
-      document.getElementById('add-type-btn')?.addEventListener('click', () => {
-        document.getElementById('new-type-name').value='';
-        UI.modal.open('add-type-modal');
-        setTimeout(()=>document.getElementById('new-type-name').focus(),200);
-      });
-    }
+    await Pages._loadTypes();
+    document.getElementById('add-type-btn')?.addEventListener('click', () => {
+      document.getElementById('new-type-name').value='';
+      UI.modal.open('add-type-modal');
+      setTimeout(()=>document.getElementById('new-type-name').focus(),200);
+    });
   },
 
   // Ouvre le picker  // Ouvre le picker de types sur le formulaire d'enregistrement
+  async _loadTypes() {
+    const types = await ItemTypes.getAll();
+    const el = document.getElementById('types-list');
+    if (!el) return;
+    if (!types.length) {
+      el.innerHTML = '<div class="empty-state"><p class="empty-state-text">Aucun type défini</p></div>';
+      return;
+    }
+    el.innerHTML = `<div class="table-wrapper"><table>
+      <thead><tr><th>Type de matériel</th><th>Actions</th></tr></thead>
+      <tbody>${types.map(t => `<tr>
+        <td style="font-weight:500">${Utils.escapeHtml(t.name)}</td>
+        <td><button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}','${Utils.escapeHtml(t.name)}')">🗑 Supprimer</button></td>
+      </tr>`).join('')}</tbody></table></div>`;
+  },
+
+  async _deleteType(id, name) {
+    if (!await UI.confirm(`Supprimer le type "${name}" ?`)) return;
+    const { error } = await ItemTypes.delete(id);
+    if (error) UI.toast('Erreur', 'error');
+    else { UI.toast('Type supprimé', 'success'); Pages._loadTypes(); }
+  },
+
   async openTypePicker(targetId) {
     const types = await ItemTypes.getAll();
     const list = document.getElementById('type-picker-list');

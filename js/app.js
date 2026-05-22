@@ -246,7 +246,7 @@ const App = {
   navigate(page, params = {}) {
     if (!this.pages[page]) return;
     if (page !== 'login' && !Auth.isAuthenticated()) { this.navigate('login'); return; }
-    if ((page === 'users' || page === 'logs' || page === 'settings') && !Auth.isAdmin()) {
+    if ((page === 'users' || page === 'logs') && !Auth.isAdmin()) {
       UI.toast('Accès réservé à l\'administrateur', 'error'); return;
     }
     this.currentPage = page;
