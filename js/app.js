@@ -395,19 +395,30 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Détecte un lien de reset mot de passe Supabase (type=recovery dans le hash)
+  // Détecte un lien de reset Supabase AVANT init()
+  // Supabase met le token dans le hash : #access_token=...&type=recovery
   const hash = window.location.hash;
-  if (hash && hash.includes('type=recovery')) {
-    // Supabase a déjà parsé le token et établi une session temporaire
-    // On attend que la session soit prête puis on affiche le formulaire
-    db.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // Nettoie l'URL
-        history.replaceState(null, '', window.location.pathname);
-        // Affiche le formulaire de définition du nouveau mot de passe
+  const params = new URLSearchParams(hash.replace('#', ''));
+  const type = params.get('type');
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+
+  if (type === 'recovery' && accessToken) {
+    // Nettoie l'URL immédiatement
+    history.replaceState(null, '', window.location.pathname);
+
+    // Établit la session manuellement avec le token
+    db.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
+      .then(() => {
+        // Affiche directement le formulaire de reset
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('qr-fab').style.display = 'none';
         Pages.renderPasswordRecovery();
-      }
-    });
+      })
+      .catch(() => {
+        App.init();
+      });
+    return;
   }
 
   App.init();
