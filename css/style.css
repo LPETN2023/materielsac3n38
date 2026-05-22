@@ -1410,14 +1410,15 @@ html, body {
   .card-body { padding: 10mm !important; }
 
   .print-qr-area {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
-    gap: 8mm !important;
+    /* Les styles de grille sont définis inline par JS selon la taille et position choisies */
+    gap: 6mm !important;
   }
 
   .qr-item {
     page-break-inside: avoid;
     break-inside: avoid;
+    /* Pour le mode "à droite", assure que le flex fonctionne à l'impression */
+    display: flex !important;
   }
 }
 
