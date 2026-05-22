@@ -640,9 +640,12 @@ const Pages = {
   },
 
   _renderQRGrid(container, items, size, labelPos) {
-    // "en dessous" : grille auto, "à droite" : 2 colonnes fixes 50/50
+    // Largeur minimale d'une cellule "à droite" = QR + gap + texte minimum (130px)
+    const minCellW = size + 10 + 130;
+
     if (labelPos === 'right') {
-      container.style.cssText = `display:grid;grid-template-columns:repeat(2,1fr);gap:8px`;
+      // auto-fill : le navigateur calcule le bon nombre de colonnes selon la place disponible
+      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,minmax(${minCellW}px,1fr));gap:8px`;
     } else {
       container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:10px`;
     }
@@ -651,19 +654,18 @@ const Pages = {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
       if (labelPos === 'right') {
-        // Chaque cellule = flex row : QR fixe à gauche + texte flexible à droite
-        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;overflow:hidden;box-sizing:border-box`;
+        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0;overflow:hidden`;
       } else {
         wrapper.style.cssText = `flex-direction:column;align-items:center;gap:4px;width:${size+16}px`;
       }
 
       const qrDiv = document.createElement('div');
-      qrDiv.style.cssText = `flex-shrink:0;width:${size}px;height:${size}px`;
+      qrDiv.style.cssText = `flex:0 0 ${size}px;width:${size}px;height:${size}px`;
 
       const label = document.createElement('div');
       label.className = 'qr-code-label';
       if (labelPos === 'right') {
-        label.style.cssText = `text-align:left;flex:1;min-width:0;overflow:hidden;word-break:break-word;overflow-wrap:break-word`;
+        label.style.cssText = `text-align:left;flex:1;min-width:0;word-break:break-word;overflow-wrap:anywhere`;
       } else {
         label.style.cssText = `text-align:center;max-width:${size+20}px;word-break:break-word`;
       }
