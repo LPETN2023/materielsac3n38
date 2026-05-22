@@ -1,7 +1,7 @@
 // ============================================================
 // SERVICE WORKER - chemins relatifs pour GitHub Pages
 // ============================================================
-const CACHE_NAME = 'inventaire-v3';
+const CACHE_NAME = 'inventaire-v4';
 
 // Le SW est installé depuis /materielsac3n38/sw.js
 // self.location.pathname = '/materielsac3n38/sw.js'
