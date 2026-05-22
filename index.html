@@ -10,26 +10,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script>
-    function showError(msg, src, line) {
-      document.body.style.cssText = 'background:#fff!important;padding:20px;margin-left:0!important';
-      document.body.innerHTML = '<div style="background:#fee;border:2px solid red;padding:20px;border-radius:8px;font-family:monospace;max-width:800px">' +
-        '<h2 style="color:red;margin:0 0 12px">Erreur détectée</h2>' +
-        '<p><b>Message:</b> ' + String(msg) + '</p>' +
-        '<p><b>Fichier:</b> ' + String(src) + '</p>' +
-        '<p><b>Ligne:</b> ' + String(line) + '</p>' +
-        '</div>';
-    }
-    // Erreurs JS classiques
-    window.onerror = function(msg, src, line, col, err) {
-      showError(msg, src, line);
-      return false;
-    };
-    // Erreurs dans les Promises et async/await
-    window.addEventListener('unhandledrejection', function(e) {
-      showError(e.reason?.message || String(e.reason), e.reason?.stack || 'Promise', '');
-    });
-  </script>
 </head>
 <body>
 
