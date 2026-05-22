@@ -574,7 +574,6 @@ const Pages = {
     const btn = document.getElementById('download-zip-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Génération...'; }
 
-    // Détermine quel onglet est actif
     const isBlank = document.getElementById('qr-tab-blank')?.style.display !== 'none';
     const activeGrid = isBlank ? 'qr-grid-blank' : 'qr-grid-linked';
     const container = document.getElementById(activeGrid);
@@ -585,7 +584,6 @@ const Pages = {
       return;
     }
 
-    // Charge JSZip dynamiquement
     if (!window.JSZip) {
       await new Promise((resolve, reject) => {
         const s = document.createElement('script');
@@ -597,41 +595,126 @@ const Pages = {
 
     const zip = new JSZip();
     const items = container.querySelectorAll('.qr-item');
+    const labelPos = container.dataset.labelPos || 'below';
 
     items.forEach((item, i) => {
-      // QRCode.js génère soit un canvas soit une img
-      const canvas = item.querySelector('canvas');
-      const img = item.querySelector('img');
-      const label = item.querySelector('.qr-code-label');
-      // Récupère le code depuis le texte monospace du label
-      const codeEl = label?.querySelector('.font-mono');
+      const qrCanvas = item.querySelector('canvas');
+      const qrImg = item.querySelector('img');
+      const labelEl = item.querySelector('.qr-code-label');
+
+      // Récupère le code QR
+      const codeEl = labelEl?.querySelector('.font-mono');
       const code = codeEl?.textContent?.trim() || `qrcode-${i+1}`;
       const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
 
-      let dataUrl = null;
-      if (canvas) {
-        dataUrl = canvas.toDataURL('image/png');
-      } else if (img) {
-        // Redessine l'img dans un canvas pour obtenir le PNG
-        const c = document.createElement('canvas');
-        c.width = img.naturalWidth || img.width;
-        c.height = img.naturalHeight || img.height;
-        c.getContext('2d').drawImage(img, 0, 0);
-        dataUrl = c.toDataURL('image/png');
+      // Récupère les lignes de texte du label
+      const labelLines = [];
+      if (labelEl) {
+        labelEl.querySelectorAll('div').forEach(div => {
+          const t = div.textContent?.trim();
+          if (t) labelLines.push(t);
+        });
       }
 
-      if (dataUrl) {
-        const base64 = dataUrl.split(',')[1];
-        zip.file(`${safeName}.png`, base64, { base64: true });
+      // Obtient l'image QR en canvas
+      let qrImage = null;
+      let qrSize = 0;
+      if (qrCanvas) {
+        qrImage = qrCanvas;
+        qrSize = qrCanvas.width;
+      } else if (qrImg) {
+        const c = document.createElement('canvas');
+        c.width = qrImg.naturalWidth || qrImg.width;
+        c.height = qrImg.naturalHeight || qrImg.height;
+        c.getContext('2d').drawImage(qrImg, 0, 0);
+        qrImage = c;
+        qrSize = c.width;
       }
+
+      if (!qrImage) return;
+
+      // Crée le canvas composite (QR + texte)
+      const scale = 2; // Haute résolution
+      const fontSize = Math.max(10, Math.round(qrSize * 0.09));
+      const lineH = Math.round(fontSize * 1.4);
+      const padding = Math.round(qrSize * 0.08);
+
+      let canvasW, canvasH;
+
+      if (labelPos === 'right') {
+        // QR à gauche, texte à droite
+        const textW = Math.round(qrSize * 1.5);
+        canvasW = qrSize + padding + textW + padding * 2;
+        canvasH = Math.max(qrSize, labelLines.length * lineH) + padding * 2;
+      } else {
+        // QR en haut, texte en dessous
+        canvasW = qrSize + padding * 2;
+        canvasH = qrSize + padding + labelLines.length * lineH + padding;
+      }
+
+      const c = document.createElement('canvas');
+      c.width = canvasW * scale;
+      c.height = canvasH * scale;
+      const ctx = c.getContext('2d');
+      ctx.scale(scale, scale);
+
+      // Fond blanc
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasW, canvasH);
+
+      // Dessine le QR code
+      if (labelPos === 'right') {
+        ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
+        // Texte à droite
+        const textX = qrSize + padding * 2;
+        const textStartY = padding + fontSize;
+        ctx.fillStyle = '#1a1d23';
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        labelLines.forEach((line, j) => {
+          if (j === 0) {
+            ctx.font = `bold ${fontSize}px sans-serif`;
+          } else if (line.startsWith('📍')) {
+            ctx.font = `${Math.round(fontSize * 0.85)}px sans-serif`;
+            ctx.fillStyle = '#1B3A6B';
+          } else {
+            ctx.font = `${Math.round(fontSize * 0.9)}px sans-serif`;
+            ctx.fillStyle = '#5A6070';
+          }
+          ctx.fillText(line, textX, textStartY + j * lineH);
+          ctx.fillStyle = '#1a1d23';
+        });
+      } else {
+        // QR en haut
+        ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
+        // Texte en dessous
+        ctx.textAlign = 'center';
+        const textStartY = qrSize + padding + fontSize;
+        labelLines.forEach((line, j) => {
+          if (j === 0) {
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.fillStyle = '#1a1d23';
+          } else if (line.startsWith('📍')) {
+            ctx.font = `${Math.round(fontSize * 0.85)}px sans-serif`;
+            ctx.fillStyle = '#1B3A6B';
+          } else {
+            ctx.font = `${Math.round(fontSize * 0.9)}px sans-serif`;
+            ctx.fillStyle = '#5A6070';
+          }
+          ctx.fillText(line, canvasW / 2, textStartY + j * lineH);
+          ctx.fillStyle = '#1a1d23';
+        });
+      }
+
+      const dataUrl = c.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+      zip.file(`${safeName}.png`, base64, { base64: true });
     });
 
-    // Génère et télécharge le ZIP
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `qrcodes-inventaire-${new Date().toISOString().split('T')[0]}.zip`;
+    a.download = `qrcodes-${new Date().toISOString().split('T')[0]}.zip`;
     a.click();
     URL.revokeObjectURL(url);
 
