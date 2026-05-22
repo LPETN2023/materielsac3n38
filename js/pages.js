@@ -640,24 +640,21 @@ const Pages = {
   },
 
   _renderQRGrid(container, items, size, labelPos) {
-    const gap = 10;
-    // Largeur du label basée sur la longueur max du code (format INV-XXXXXXXX-XXXX = ~20 chars)
-    // En monospace 9px : ~6px/char → 20 chars = 120px, on prend 160px minimum
-    const labelWidth = labelPos === 'right' ? Math.max(160, size * 2) : 0;
-    const itemW = labelPos === 'right' ? size + labelWidth + gap : size + 16;
-
-    // Pour "à droite" : 2 colonnes max pour avoir assez de place
+    // Approche simple et fiable :
+    // - "en dessous" : grille de colonnes fixes, items en colonne
+    // - "à droite"   : liste verticale, chaque item est une ligne flex
     if (labelPos === 'right') {
-      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,minmax(${itemW}px,1fr));gap:${gap}px`;
+      // Liste verticale : 1 item par ligne, QR à gauche + texte à droite
+      container.style.cssText = `display:flex;flex-direction:column;gap:8px`;
     } else {
-      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:${gap}px`;
+      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:10px`;
     }
 
     items.forEach(({code, label1, label2, label3}) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
       if (labelPos === 'right') {
-        wrapper.style.cssText = `flex-direction:row;align-items:center;gap:${gap}px;min-width:${itemW}px`;
+        wrapper.style.cssText = `flex-direction:row;align-items:center;gap:12px;width:100%;padding:6px 10px`;
       } else {
         wrapper.style.cssText = `flex-direction:column;align-items:center;gap:4px;width:${size+16}px`;
       }
@@ -668,7 +665,7 @@ const Pages = {
       const label = document.createElement('div');
       label.className = 'qr-code-label';
       if (labelPos === 'right') {
-        label.style.cssText = `text-align:left;flex:1;min-width:0;word-break:break-all;overflow-wrap:anywhere`;
+        label.style.cssText = `text-align:left;flex:1;min-width:0;word-break:break-word`;
       } else {
         label.style.cssText = `text-align:center;max-width:${size+20}px;word-break:break-word`;
       }
