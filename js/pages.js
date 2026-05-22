@@ -369,7 +369,10 @@ const Pages = {
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <h1 class="page-header-title">QR Codes</h1>
-        <button class="btn btn-primary btn-sm no-print" onclick="window.print()">🖨️ Imprimer</button>
+        <div class="btn-group no-print">
+          <button class="btn btn-secondary btn-sm" id="download-zip-btn">📥 Télécharger ZIP</button>
+          <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Imprimer</button>
+        </div>
       </div>
       <div class="page-body">
         <div class="tab-bar no-print">
@@ -474,6 +477,7 @@ const Pages = {
     document.getElementById('qr-label-pos')?.addEventListener('change', Pages._loadLinkedQRCodes);
     document.getElementById('qr-filter-status')?.addEventListener('change', Pages._loadLinkedQRCodes);
     document.getElementById('generate-blank-btn')?.addEventListener('click', Pages._generateBlankQRCodes);
+    document.getElementById('download-zip-btn')?.addEventListener('click', Pages._downloadQRZip);
   },
 
   _switchQRTab(tab) {
@@ -510,6 +514,76 @@ const Pages = {
     if (!container) return;
     container.innerHTML = '';
     Pages._renderQRGrid(container, codes, size, labelPos);
+  },
+
+  // Export ZIP : un PNG par QR code
+  async _downloadQRZip() {
+    const btn = document.getElementById('download-zip-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Génération...'; }
+
+    // Détermine quel onglet est actif
+    const isBlank = document.getElementById('qr-tab-blank')?.style.display !== 'none';
+    const activeGrid = isBlank ? 'qr-grid-blank' : 'qr-grid-linked';
+    const container = document.getElementById(activeGrid);
+
+    if (!container || container.children.length === 0) {
+      UI.toast('Aucun QR code à télécharger', 'warning');
+      if (btn) { btn.disabled = false; btn.innerHTML = '📥 Télécharger ZIP'; }
+      return;
+    }
+
+    // Charge JSZip dynamiquement
+    if (!window.JSZip) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    const zip = new JSZip();
+    const items = container.querySelectorAll('.qr-item');
+
+    items.forEach((item, i) => {
+      // QRCode.js génère soit un canvas soit une img
+      const canvas = item.querySelector('canvas');
+      const img = item.querySelector('img');
+      const label = item.querySelector('.qr-code-label');
+      // Récupère le code depuis le texte monospace du label
+      const codeEl = label?.querySelector('.font-mono');
+      const code = codeEl?.textContent?.trim() || `qrcode-${i+1}`;
+      const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+
+      let dataUrl = null;
+      if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+      } else if (img) {
+        // Redessine l'img dans un canvas pour obtenir le PNG
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth || img.width;
+        c.height = img.naturalHeight || img.height;
+        c.getContext('2d').drawImage(img, 0, 0);
+        dataUrl = c.toDataURL('image/png');
+      }
+
+      if (dataUrl) {
+        const base64 = dataUrl.split(',')[1];
+        zip.file(`${safeName}.png`, base64, { base64: true });
+      }
+    });
+
+    // Génère et télécharge le ZIP
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qrcodes-inventaire-${new Date().toISOString().split('T')[0]}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    UI.toast(`${items.length} QR code(s) téléchargé(s)`, 'success');
+    if (btn) { btn.disabled = false; btn.innerHTML = '📥 Télécharger ZIP'; }
   },
 
   _renderQRGrid(container, items, size, labelPos) {
@@ -564,10 +638,6 @@ const Pages = {
         <button class="btn btn-primary btn-sm" id="add-user-btn">+ Créer un compte</button>
       </div>
       <div class="page-body">
-        <div class="alert alert-info" style="margin-bottom:16px">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <div>Pré-requis : dans Supabase → <strong>Authentication → Settings → désactiver "Confirm email"</strong></div>
-        </div>
         <div id="users-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
       </div>`;
     await Pages._loadUsers();
@@ -594,7 +664,10 @@ const Pages = {
         <td>
           <div style="display:flex;align-items:center;gap:10px">
             <div style="width:32px;height:32px;border-radius:50%;background:var(--c-accent-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--c-accent);flex-shrink:0">${user.full_name.charAt(0).toUpperCase()}</div>
-            <span style="font-weight:500">${Utils.escapeHtml(user.full_name)}</span>
+            <div>
+              <div style="font-weight:500">${Utils.escapeHtml(user.full_name)}</div>
+              ${user.must_change_password ? '<div class="text-xs" style="color:var(--c-warning)">⚠️ Doit changer son MDP</div>' : ''}
+            </div>
           </div>
         </td>
         <td class="text-sm text-muted font-mono">${Utils.escapeHtml(user.username)}</td>
@@ -604,6 +677,7 @@ const Pages = {
         <td>${user.id!==Auth.currentUser.id?`<div class="btn-group">
           <button class="btn btn-ghost btn-sm" onclick="Pages._toggleUser('${user.id}',${!user.is_active})">${user.is_active?'🔒':'🔓'}</button>
           <button class="btn btn-ghost btn-sm" onclick="Pages._changeRole('${user.id}','${user.role==='admin'?'user':'admin'}')">${user.role==='admin'?'⬇ User':'⬆ Admin'}</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--c-warning)" onclick="Pages._resetPassword('${user.id}','${Utils.escapeHtml(user.full_name)}','${Utils.escapeHtml(user.username)}')">🔑 Reset MDP</button>
         </div>`:'<span class="text-xs text-muted">(Vous)</span>'}</td>
       </tr>`).join('')}</tbody></table></div>`;
   },
@@ -619,36 +693,112 @@ const Pages = {
     if (error) UI.toast('Erreur','error'); else { UI.toast('Rôle modifié','success'); Pages._loadUsers(); }
   },
 
+  async _resetPassword(userId, fullName, username) {
+    const tempPass = Utils.generateTempPassword();
+    // Affiche le mot de passe temporaire à l'admin
+    document.getElementById('reset-user-name').textContent = fullName;
+    document.getElementById('reset-temp-password').textContent = tempPass;
+    document.getElementById('reset-supabase-email').textContent = username + '@gendarmerie.interieur.gouv.fr';
+    document.getElementById('reset-confirm-btn').onclick = async () => {
+      const { error } = await Users.resetPassword(userId, tempPass);
+      if (error) { UI.toast('Erreur : ' + error.message, 'error'); return; }
+      UI.toast('Flag "doit changer MDP" activé', 'success');
+      UI.modal.close('reset-password-modal');
+      Pages._loadUsers();
+    };
+    UI.modal.open('reset-password-modal');
+  },
+
+
   // ============================================================
   // PARAMÈTRES - Types de matériel
   // ============================================================
   async renderSettings() {
     const content = Pages.getMainContent();
+    const isActive = Auth.currentProfile?.is_active;
     content.innerHTML = `
       <div class="page-header">
         <button class="sidebar-toggle" id="sidebar-toggle"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h1 class="page-header-title">Paramètres</h1>
       </div>
       <div class="page-body">
-        <div class="card">
+
+        <!-- CHANGEMENT DE MOT DE PASSE -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="card-title">🔑 Changer mon mot de passe</span></div>
+          <div class="card-body">
+            ${!isActive ? '<div class="alert alert-danger">Votre compte est désactivé.</div>' : `
+            <form id="change-password-form">
+              <div class="form-group">
+                <label class="form-label">Mot de passe actuel <span class="required">*</span></label>
+                <input type="password" id="cp-old" class="form-control" placeholder="••••••••" required/>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
+                  <input type="password" id="cp-new" class="form-control" placeholder="Minimum 8 caractères" minlength="8" required/>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Confirmer le nouveau <span class="required">*</span></label>
+                  <input type="password" id="cp-confirm" class="form-control" placeholder="••••••••" minlength="8" required/>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" id="change-password-submit">💾 Modifier mon mot de passe</button>
+            </form>`}
+          </div>
+        </div>
+
+        <!-- TYPES DE MATÉRIEL (admin seulement) -->
+        <div class="card admin-only">
           <div class="card-header">
             <span class="card-title">📋 Types de matériel</span>
             <button class="btn btn-primary btn-sm" id="add-type-btn">+ Ajouter</button>
           </div>
           <div class="card-body">
-            <p class="text-sm text-muted" style="margin-bottom:16px">Ces types apparaissent dans le sélecteur lors de l'enregistrement d'un équipement. Vous pouvez aussi saisir librement un type dans le champ texte.</p>
+            <p class="text-sm text-muted" style="margin-bottom:16px">Ces types apparaissent dans le sélecteur lors de l'enregistrement d'un équipement.</p>
             <div id="types-list"><div style="text-align:center;padding:20px"><div class="spinner"></div></div></div>
           </div>
         </div>
       </div>`;
 
-    await Pages._loadTypes();
+    if (isActive) {
+      // Handler changement MDP inline dans la page settings
+      document.getElementById('change-password-form')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('change-password-submit');
+        const oldPass = document.getElementById('cp-old').value;
+        const newPass = document.getElementById('cp-new').value;
+        const confirm = document.getElementById('cp-confirm').value;
+        if (newPass !== confirm) { UI.toast('Les mots de passe ne correspondent pas', 'warning'); return; }
+        if (newPass.length < 8) { UI.toast('Minimum 8 caractères', 'warning'); return; }
+        UI.setLoading(btn, true);
+        try {
+          await Auth.changePassword(oldPass, newPass);
+          UI.toast('Mot de passe modifié avec succès !', 'success');
+          e.target.reset();
+        } catch (err) {
+          UI.toast(err.message, 'error');
+        }
+        UI.setLoading(btn, false);
+      });
+    }
 
-    document.getElementById('add-type-btn')?.addEventListener('click', () => {
-      document.getElementById('new-type-name').value='';
-      UI.modal.open('add-type-modal');
-      setTimeout(()=>document.getElementById('new-type-name').focus(),200);
-    });
+    if (Auth.isAdmin()) {
+      await Pages._loadTypes();
+      document.getElementById('add-type-btn')?.addEventListener('click', () => {
+        document.getElementById('new-type-name').value='';
+        UI.modal.open('add-type-modal');
+        setTimeout(()=>document.getElementById('new-type-name').focus(),200);
+      });
+    }
+  },
+
+  // Modal de changement de mot de passe obligatoire
+  showForcePasswordChange() {
+    document.getElementById('fp-old').value = '';
+    document.getElementById('fp-new').value = '';
+    document.getElementById('fp-confirm').value = '';
+    UI.modal.open('force-password-modal');
   },
 
   async _loadTypes() {

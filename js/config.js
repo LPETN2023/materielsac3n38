@@ -1,19 +1,15 @@
 // ============================================================
-// CONFIG.JS - Configuration Supabase
+// CONFIG.JS
 // ============================================================
 
 const SUPABASE_URL = 'https://ryfjulxsknibszxlznau.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Zmp1bHhza25pYnN6eGx6bmF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNTQ3NDYsImV4cCI6MjA5NDgzMDc0Nn0.cgCF3t6X7FSo1GITUoWEkhZFC_IuNJ3oIHbfXEkBCho';
 
 const { createClient } = supabase;
-
-// Client principal (session admin persistée)
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
-
-// FIX: Client secondaire SANS persistance de session
-// Utilisé uniquement pour créer des comptes sans écraser la session admin
+// Client secondaire sans persistance de session (création de comptes)
 const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
@@ -98,8 +94,24 @@ const Auth = {
     await db.auth.signOut();
   },
 
+  // Changement de mot de passe : vérifie l'ancien en se re-authentifiant
+  async changePassword(oldPassword, newPassword) {
+    const email = this.currentUser.email;
+    // Vérifie l'ancien mot de passe via un client temporaire
+    const { error: checkError } = await dbSignup.auth.signInWithPassword({ email, password: oldPassword });
+    if (checkError) throw new Error('Mot de passe actuel incorrect');
+    // Met à jour avec le nouveau
+    const { error: updateError } = await db.auth.updateUser({ password: newPassword });
+    if (updateError) throw updateError;
+    // Retire le flag must_change_password si présent
+    await db.from('profiles').update({ must_change_password: false }).eq('id', this.currentUser.id);
+    this.currentProfile.must_change_password = false;
+    await Logs.write('PASSWORD_CHANGE', 'user', this.currentUser.id, {});
+  },
+
   isAdmin() { return this.currentProfile?.role === 'admin'; },
-  isAuthenticated() { return !!this.currentUser; }
+  isAuthenticated() { return !!this.currentUser; },
+  mustChangePassword() { return !!this.currentProfile?.must_change_password; }
 };
 
 // ============================================================
@@ -136,7 +148,11 @@ const Items = {
   },
 
   async create(itemData) {
-    const { data, error } = await db.from('items').insert({ ...itemData, created_by: Auth.currentUser.id }).select().single();
+    const { data, error } = await db.from('items').insert({
+      ...itemData,
+      created_by: Auth.currentUser.id,
+      created_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
+    }).select().single();
     if (!error) await Logs.write('ITEM_CREATE', 'item', data.id, { qr_code: data.qr_code, type: data.type });
     return { data, error };
   },
@@ -167,7 +183,9 @@ const Loans = {
 
   async create(loanData) {
     const { data, error } = await db.from('loans').insert({
-      ...loanData, created_by: Auth.currentUser.id
+      ...loanData,
+      created_by: Auth.currentUser.id,
+      created_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
     }).select().single();
 
     if (!error) {
@@ -183,7 +201,8 @@ const Loans = {
     const { data, error } = await db.from('loans').update({
       returned_at: new Date().toISOString(),
       return_notes,
-      returned_by: Auth.currentUser.id
+      returned_by: Auth.currentUser.id,
+      returned_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
     }).eq('id', loanId).select().single();
 
     if (!error) {
@@ -213,21 +232,18 @@ const Autocomplete = {
     const { data } = await q;
     return data?.map(d => d.name) || [];
   },
-
   async getOperations(query = '') {
     let q = db.from('judicial_operations').select('name').order('usage_count', { ascending: false }).limit(20);
     if (query) q = q.ilike('name', `%${query}%`);
     const { data } = await q;
     return data?.map(d => d.name) || [];
   },
-
   async savePerson(name) {
     if (!name) return;
     const { data: ex } = await db.from('known_persons').select('id,usage_count').eq('name', name).single();
     if (ex) await db.from('known_persons').update({ usage_count: ex.usage_count + 1 }).eq('name', name);
     else await db.from('known_persons').insert({ name, usage_count: 1 });
   },
-
   async saveOperation(name) {
     if (!name) return;
     const { data: ex } = await db.from('judicial_operations').select('id,usage_count').eq('name', name).single();
@@ -244,13 +260,11 @@ const ItemTypes = {
     const { data } = await db.from('item_types').select('*').order('sort_order').order('name');
     return data || [];
   },
-
   async add(name) {
     const { data, error } = await db.from('item_types').insert({ name: name.trim() }).select().single();
     if (!error) await Logs.write('ITEMTYPE_CREATE', 'item_type', data.id, { name });
     return { data, error };
   },
-
   async delete(id) {
     const { error } = await db.from('item_types').delete().eq('id', id);
     if (!error) await Logs.write('ITEMTYPE_DELETE', 'item_type', id, {});
@@ -259,38 +273,44 @@ const ItemTypes = {
 };
 
 // ============================================================
-// USERS - FIX: dbSignup évite d'écraser la session admin
+// USERS
 // ============================================================
 const Users = {
   async getAll() { return await db.from('profiles').select('*').order('created_at'); },
 
-  async create(email, password, fullName, role = 'user') {
-    // 1. Vérification domaine en premier
+  async create(email, password, fullName, role = 'user', mustChange = true) {
     if (!email.toLowerCase().endsWith('@gendarmerie.interieur.gouv.fr')) {
       throw new Error('Seuls les emails @gendarmerie.interieur.gouv.fr sont autorisés');
     }
-
-    // 2. Création auth via le client secondaire (ne touche pas à la session admin)
     const { data, error: signUpError } = await dbSignup.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } }
+      email, password, options: { data: { full_name: fullName } }
     });
     if (signUpError) throw signUpError;
     if (!data.user) throw new Error('Erreur lors de la création du compte');
 
-    // 3. Insertion du profil via le client admin (session admin intacte)
     const { error: profileError } = await db.from('profiles').insert({
       id: data.user.id,
       username: email.split('@')[0].toLowerCase(),
       full_name: fullName,
       role,
-      is_active: true
+      is_active: true,
+      must_change_password: mustChange  // Force le changement à la première connexion
     });
-    if (profileError) throw new Error('Compte auth créé mais profil non enregistré : ' + profileError.message);
+    if (profileError) throw new Error('Compte créé mais profil non enregistré : ' + profileError.message);
 
     await Logs.write('USER_CREATE', 'user', data.user.id, { email, role });
     return data.user;
+  },
+
+  // Reset mot de passe par admin : met le flag + stocke le mot de passe temporaire en clair
+  // L'admin doit AUSSI mettre à jour le mot de passe dans Supabase Dashboard > Auth > Users
+  async resetPassword(userId, tempPassword) {
+    const { error } = await db.from('profiles').update({
+      must_change_password: true,
+      temp_password_hint: tempPassword  // Stocké pour affichage à l'admin uniquement
+    }).eq('id', userId);
+    await Logs.write('PASSWORD_RESET', 'user', userId, {});
+    return { error };
   },
 
   async toggle(userId, isActive) {
@@ -325,6 +345,10 @@ const Utils = {
     const ts = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${prefix}-${ts}-${rand}`;
+  },
+  generateTempPassword() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   },
   escapeHtml(str) {
     if (!str) return '';

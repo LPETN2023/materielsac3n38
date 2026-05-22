@@ -125,6 +125,28 @@ function initAutocomplete(inputEl, fetchFn) {
 }
 
 // ============================================================
+// DOMAIN AUTOFILL
+// ============================================================
+const DOMAIN = '@gendarmerie.interieur.gouv.fr';
+
+function initDomainAutofill(inputEl) {
+  if (!inputEl || inputEl.dataset.domainAc) return;
+  inputEl.dataset.domainAc = '1';
+
+  const applyDomain = () => {
+    const val = inputEl.value.trim();
+    if (val.length >= 3 && !val.includes('@')) {
+      inputEl.value = val + DOMAIN;
+    }
+  };
+
+  inputEl.addEventListener('blur', applyDomain);
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Tab' || e.key === 'Enter') applyDomain();
+  });
+}
+
+// ============================================================
 // QR SCANNER
 // ============================================================
 const Scanner = {
@@ -208,7 +230,13 @@ const App = {
     const session = await Auth.init();
     if (session) {
       this.showApp();
-      this.navigate('dashboard');
+      // Vérifie si l'utilisateur doit changer son mot de passe
+      if (Auth.mustChangePassword()) {
+        this.navigate('dashboard');
+        setTimeout(() => Pages.showForcePasswordChange(), 300);
+      } else {
+        this.navigate('dashboard');
+      }
     } else {
       this.navigate('login');
     }
@@ -224,8 +252,15 @@ const App = {
   navigate(page, params = {}) {
     if (!this.pages[page]) return;
     if (page !== 'login' && !Auth.isAuthenticated()) { this.navigate('login'); return; }
-    if ((page === 'users' || page === 'logs' || page === 'settings') && !Auth.isAdmin()) {
+    if ((page === 'users' || page === 'logs') && !Auth.isAdmin()) {
       UI.toast('Accès réservé à l\'administrateur', 'error'); return;
+    }
+    // Bloque la navigation si changement de MDP obligatoire
+    if (Auth.mustChangePassword() && page !== 'login') {
+      if (page !== 'settings' && page !== 'dashboard') {
+        Pages.showForcePasswordChange();
+        return;
+      }
     }
     this.currentPage = page;
     this.updateSidebarActive(page);
@@ -242,8 +277,7 @@ const App = {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
 
-    // FIX: Délégation d'événement sur document pour le bouton toggle
-    // Fonctionne même quand le bouton est recréé à chaque navigation
+    // Délégation d'événement pour sidebar-toggle (survit aux re-rendus)
     document.addEventListener('click', e => {
       if (e.target.closest('#sidebar-toggle')) {
         sidebar.classList.toggle('open');
@@ -251,13 +285,11 @@ const App = {
       }
     });
 
-    // Fermeture sidebar via overlay
     overlay?.addEventListener('click', () => {
       sidebar.classList.remove('open');
       overlay.classList.remove('open');
     });
 
-    // Navigation sidebar (éléments fixes, binding direct OK)
     document.querySelectorAll('.sidebar-nav-item').forEach(item => {
       item.addEventListener('click', () => {
         const page = item.dataset.page;
@@ -269,16 +301,13 @@ const App = {
       });
     });
 
-    // FAB scanner
     document.getElementById('qr-fab')?.addEventListener('click', () => this.openQRFlow());
 
-    // Fermer scanner
     document.getElementById('scanner-close')?.addEventListener('click', () => {
       Scanner.stop();
       UI.modal.close('scanner-modal');
     });
 
-    // Saisie manuelle QR
     document.getElementById('manual-qr-btn')?.addEventListener('click', () => {
       const val = document.getElementById('manual-qr-input').value.trim();
       if (val) { Scanner.stop(); UI.modal.close('scanner-modal'); this.handleQRCode(val); }
@@ -288,24 +317,66 @@ const App = {
       if (e.key === 'Enter') document.getElementById('manual-qr-btn').click();
     });
 
-    // Déconnexion
     document.getElementById('sidebar-user')?.addEventListener('click', async () => {
       const confirmed = await UI.confirm('Se déconnecter ?');
       if (confirmed) await Auth.logout();
     });
 
-    // Fermeture modales sur clic backdrop
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
       backdrop.addEventListener('click', e => {
         if (e.target === backdrop) {
           if (backdrop.id === 'scanner-modal') Scanner.stop();
-          UI.modal.close(backdrop.id);
+          // Ne ferme pas le modal de changement de MDP obligatoire
+          if (backdrop.id !== 'force-password-modal') UI.modal.close(backdrop.id);
         }
       });
+    });
+
+    // Handler changement de mot de passe (propre)
+    document.getElementById('change-password-form')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('change-password-submit');
+      const oldPass = document.getElementById('cp-old').value;
+      const newPass = document.getElementById('cp-new').value;
+      const confirm = document.getElementById('cp-confirm').value;
+      if (newPass !== confirm) { UI.toast('Les nouveaux mots de passe ne correspondent pas', 'warning'); return; }
+      if (newPass.length < 8) { UI.toast('Le mot de passe doit faire au moins 8 caractères', 'warning'); return; }
+      UI.setLoading(btn, true);
+      try {
+        await Auth.changePassword(oldPass, newPass);
+        UI.toast('Mot de passe modifié avec succès !', 'success');
+        UI.modal.close('change-password-modal');
+        document.getElementById('change-password-form').reset();
+      } catch (err) {
+        UI.toast(err.message, 'error');
+      }
+      UI.setLoading(btn, false);
+    });
+
+    // Handler changement de MDP obligatoire
+    document.getElementById('force-password-form')?.addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('force-password-submit');
+      const oldPass = document.getElementById('fp-old').value;
+      const newPass = document.getElementById('fp-new').value;
+      const confirm = document.getElementById('fp-confirm').value;
+      if (newPass !== confirm) { UI.toast('Les mots de passe ne correspondent pas', 'warning'); return; }
+      if (newPass.length < 8) { UI.toast('Minimum 8 caractères', 'warning'); return; }
+      UI.setLoading(btn, true);
+      try {
+        await Auth.changePassword(oldPass, newPass);
+        UI.toast('Mot de passe défini avec succès !', 'success');
+        UI.modal.close('force-password-modal');
+        document.body.style.overflow = '';
+      } catch (err) {
+        UI.toast(err.message, 'error');
+        UI.setLoading(btn, false);
+      }
     });
   },
 
   openQRFlow() {
+    if (Auth.mustChangePassword()) { Pages.showForcePasswordChange(); return; }
     Scanner.open(code => this.handleQRCode(code));
   },
 
@@ -322,31 +393,5 @@ const App = {
     }
   }
 };
-
-// ============================================================
-// DOMAIN AUTOFILL - Auto-complète le domaine email
-// ============================================================
-const DOMAIN = '@gendarmerie.interieur.gouv.fr';
-
-function initDomainAutofill(inputEl) {
-  if (!inputEl || inputEl.dataset.domainAc) return;
-  inputEl.dataset.domainAc = '1';
-
-  const applyDomain = () => {
-    const val = inputEl.value.trim();
-    // N'applique que si au moins 3 caractères et pas de @ déjà présent
-    if (val.length >= 3 && !val.includes('@')) {
-      inputEl.value = val + DOMAIN;
-    }
-  };
-
-  inputEl.addEventListener('blur', applyDomain);
-
-  inputEl.addEventListener('keydown', e => {
-    if (e.key === 'Tab' || e.key === 'Enter') {
-      applyDomain();
-    }
-  });
-}
 
 document.addEventListener('DOMContentLoaded', () => App.init());
