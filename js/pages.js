@@ -640,15 +640,16 @@ const Pages = {
   },
 
   _renderQRGrid(container, items, size, labelPos) {
-    // FIX: à droite = plus de largeur pour le texte (160px fixes)
-    const labelWidth = 160;
-    const itemW = labelPos==='right' ? size + labelWidth + 12 : size + 16;
-    container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,minmax(${itemW}px,max-content));gap:10px`;
+    const labelWidth = 180;
+    const gap = 12;
+    const itemW = labelPos==='right' ? size + labelWidth + gap : size + 16;
+    // Largeur fixe pour éviter la troncature du texte à droite
+    container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${itemW}px);gap:10px`;
 
     items.forEach(({code, label1, label2, label3}) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
-      wrapper.style.cssText = `flex-direction:${labelPos==='right'?'row':'column'};align-items:center;gap:${labelPos==='right'?'10px':'4px'}`;
+      wrapper.style.cssText = `flex-direction:${labelPos==='right'?'row':'column'};align-items:center;gap:${labelPos==='right'?gap+'px':'4px'};width:${itemW}px;overflow:hidden`;
 
       const qrDiv = document.createElement('div');
       qrDiv.style.flexShrink = '0';
@@ -656,7 +657,7 @@ const Pages = {
       const label = document.createElement('div');
       label.className = 'qr-code-label';
       if (labelPos==='right') {
-        label.style.cssText = `text-align:left;width:${labelWidth}px;min-width:${labelWidth}px;word-break:break-word`;
+        label.style.cssText = `text-align:left;width:${labelWidth}px;min-width:0;flex:1;overflow:hidden;word-break:break-all`;
       } else {
         label.style.cssText = `text-align:center;max-width:${size+20}px;word-break:break-word`;
       }
