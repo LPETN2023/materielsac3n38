@@ -640,12 +640,9 @@ const Pages = {
   },
 
   _renderQRGrid(container, items, size, labelPos) {
-    // Approche simple et fiable :
-    // - "en dessous" : grille de colonnes fixes, items en colonne
-    // - "à droite"   : liste verticale, chaque item est une ligne flex
+    // "en dessous" : grille auto, "à droite" : 2 colonnes fixes 50/50
     if (labelPos === 'right') {
-      // Liste verticale : 1 item par ligne, QR à gauche + texte à droite
-      container.style.cssText = `display:flex;flex-direction:column;gap:8px`;
+      container.style.cssText = `display:grid;grid-template-columns:repeat(2,1fr);gap:8px`;
     } else {
       container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:10px`;
     }
@@ -654,18 +651,19 @@ const Pages = {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
       if (labelPos === 'right') {
-        wrapper.style.cssText = `flex-direction:row;align-items:center;gap:12px;width:100%;padding:6px 10px`;
+        // Chaque cellule = flex row : QR fixe à gauche + texte flexible à droite
+        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;overflow:hidden;box-sizing:border-box`;
       } else {
         wrapper.style.cssText = `flex-direction:column;align-items:center;gap:4px;width:${size+16}px`;
       }
 
       const qrDiv = document.createElement('div');
-      qrDiv.style.flexShrink = '0';
+      qrDiv.style.cssText = `flex-shrink:0;width:${size}px;height:${size}px`;
 
       const label = document.createElement('div');
       label.className = 'qr-code-label';
       if (labelPos === 'right') {
-        label.style.cssText = `text-align:left;flex:1;min-width:0;word-break:break-word`;
+        label.style.cssText = `text-align:left;flex:1;min-width:0;overflow:hidden;word-break:break-word;overflow-wrap:break-word`;
       } else {
         label.style.cssText = `text-align:center;max-width:${size+20}px;word-break:break-word`;
       }
