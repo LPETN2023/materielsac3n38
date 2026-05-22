@@ -826,7 +826,7 @@ const Pages = {
         errorEl.classList.remove('hidden'); return;
       }
       if (currentPass === newPass) {
-        errorMsg.textContent = 'Le nouveau mot de passe doit être différent de l'actuel';
+        errorMsg.textContent = 'Le nouveau mot de passe doit être différent du mot de passe actuel';
         errorEl.classList.remove('hidden'); return;
       }
 
