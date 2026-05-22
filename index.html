@@ -10,6 +10,19 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script>
+    window.onerror = function(msg, src, line, col, err) {
+      document.body.style.background = '#fff';
+      document.body.style.padding = '20px';
+      document.body.innerHTML = '<div style="background:#fee;border:2px solid red;padding:20px;border-radius:8px;font-family:monospace">' +
+        '<h2 style="color:red">Erreur JS détectée</h2>' +
+        '<p><b>Message:</b> ' + msg + '</p>' +
+        '<p><b>Fichier:</b> ' + src + '</p>' +
+        '<p><b>Ligne:</b> ' + line + ', Colonne: ' + col + '</p>' +
+        '</div>';
+      return false;
+    };
+  </script>
 </head>
 <body>
 
