@@ -1,7 +1,7 @@
 {
-  "name": "Inventaire Materiels",
+  "name": "Gestion de Matériels",
   "short_name": "Inventaire",
-  "description": "Système de gestion d'inventaire materiels sécurisé",
+  "description": "Système de gestion d'gestion de matériels sécurisé",
   "start_url": "/materielsac3n38/",
   "scope": "/materielsac3n38/",
   "display": "standalone",

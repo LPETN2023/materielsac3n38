@@ -71,7 +71,7 @@ const Pages = {
         <div class="login-card">
           <div class="login-header">
             <div class="login-logo">🔐</div>
-            <h1 class="login-title">Inventaire Judiciaire</h1>
+            <h1 class="login-title">Gestion de Matériels</h1>
             <p class="login-subtitle">Accès réservé aux personnels autorisés</p>
           </div>
           <div id="login-error" class="alert alert-danger hidden">
@@ -769,6 +769,10 @@ const Pages = {
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               <span id="pw-error-msg"></span>
             </div>
+            <div class="form-group">
+              <label class="form-label">Mot de passe actuel <span class="required">*</span></label>
+              <input type="password" id="pw-current" class="form-control" placeholder="Votre mot de passe actuel" minlength="6"/>
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
@@ -799,6 +803,7 @@ const Pages = {
     // Handler changement de mot de passe
     document.getElementById('pw-submit')?.addEventListener('click', async () => {
       const btn = document.getElementById('pw-submit');
+      const currentPass = document.getElementById('pw-current').value;
       const newPass = document.getElementById('pw-new').value;
       const confirm = document.getElementById('pw-confirm').value;
       const errorEl = document.getElementById('pw-error');
@@ -808,16 +813,37 @@ const Pages = {
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
 
+      if (!currentPass) {
+        errorMsg.textContent = 'Saisissez votre mot de passe actuel';
+        errorEl.classList.remove('hidden'); return;
+      }
       if (newPass.length < 6) {
-        errorMsg.textContent = 'Le mot de passe doit faire au moins 6 caractères';
+        errorMsg.textContent = 'Le nouveau mot de passe doit faire au moins 6 caractères';
         errorEl.classList.remove('hidden'); return;
       }
       if (newPass !== confirm) {
         errorMsg.textContent = 'Les deux mots de passe ne correspondent pas';
         errorEl.classList.remove('hidden'); return;
       }
+      if (currentPass === newPass) {
+        errorMsg.textContent = 'Le nouveau mot de passe doit être différent de l'actuel';
+        errorEl.classList.remove('hidden'); return;
+      }
 
       UI.setLoading(btn, true);
+
+      // Vérifie l'ancien mot de passe en tentant une connexion silencieuse
+      const { error: checkError } = await dbSignup.auth.signInWithPassword({
+        email: Auth.currentUser.email,
+        password: currentPass
+      });
+      if (checkError) {
+        errorMsg.textContent = 'Mot de passe actuel incorrect';
+        errorEl.classList.remove('hidden');
+        UI.setLoading(btn, false);
+        return;
+      }
+
       const { error } = await db.auth.updateUser({ password: newPass });
       UI.setLoading(btn, false);
 
@@ -826,6 +852,7 @@ const Pages = {
         errorEl.classList.remove('hidden');
       } else {
         successEl.classList.remove('hidden');
+        document.getElementById('pw-current').value = '';
         document.getElementById('pw-new').value = '';
         document.getElementById('pw-confirm').value = '';
         await Logs.write('PASSWORD_CHANGE', 'user', Auth.currentUser.id, {});
