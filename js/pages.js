@@ -704,6 +704,34 @@ const Pages = {
         <h1 class="page-header-title">Paramètres</h1>
       </div>
       <div class="page-body">
+
+        <!-- CHANGEMENT DE MOT DE PASSE -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header"><span class="card-title">🔑 Changer mon mot de passe</span></div>
+          <div class="card-body">
+            <div id="pw-success" class="alert alert-success hidden">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Mot de passe modifié avec succès !
+            </div>
+            <div id="pw-error" class="alert alert-danger hidden">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span id="pw-error-msg"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
+                <input type="password" id="pw-new" class="form-control" placeholder="Minimum 6 caractères" minlength="6"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirmer le nouveau mot de passe <span class="required">*</span></label>
+                <input type="password" id="pw-confirm" class="form-control" placeholder="••••••••" minlength="6"/>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="pw-submit">💾 Modifier mon mot de passe</button>
+          </div>
+        </div>
+
+        <!-- TYPES DE MATÉRIEL (admin seulement) -->
         <div class="card admin-only">
           <div class="card-header">
             <span class="card-title">📋 Types de matériel</span>
@@ -715,6 +743,42 @@ const Pages = {
           </div>
         </div>
       </div>`;
+
+    // Handler changement de mot de passe
+    document.getElementById('pw-submit')?.addEventListener('click', async () => {
+      const btn = document.getElementById('pw-submit');
+      const newPass = document.getElementById('pw-new').value;
+      const confirm = document.getElementById('pw-confirm').value;
+      const errorEl = document.getElementById('pw-error');
+      const errorMsg = document.getElementById('pw-error-msg');
+      const successEl = document.getElementById('pw-success');
+
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+
+      if (newPass.length < 6) {
+        errorMsg.textContent = 'Le mot de passe doit faire au moins 6 caractères';
+        errorEl.classList.remove('hidden'); return;
+      }
+      if (newPass !== confirm) {
+        errorMsg.textContent = 'Les deux mots de passe ne correspondent pas';
+        errorEl.classList.remove('hidden'); return;
+      }
+
+      UI.setLoading(btn, true);
+      const { error } = await db.auth.updateUser({ password: newPass });
+      UI.setLoading(btn, false);
+
+      if (error) {
+        errorMsg.textContent = error.message;
+        errorEl.classList.remove('hidden');
+      } else {
+        successEl.classList.remove('hidden');
+        document.getElementById('pw-new').value = '';
+        document.getElementById('pw-confirm').value = '';
+        await Logs.write('PASSWORD_CHANGE', 'user', Auth.currentUser.id, {});
+      }
+    });
 
     if (Auth.isAdmin()) {
       await Pages._loadTypes();
