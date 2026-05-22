@@ -395,30 +395,25 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Log pour debug - à supprimer une fois que ça marche
-  console.log('URL hash:', window.location.hash);
-  console.log('URL search:', window.location.search);
-
-  // Vérifie les deux formats possibles de lien de recovery Supabase :
-  // - Implicit flow : #access_token=...&type=recovery
-  // - PKCE flow    : ?code=...  (Supabase gère lui-même via detectSessionInUrl:true)
-
   const hash = window.location.hash;
   const search = window.location.search;
   const hashParams = new URLSearchParams(hash.replace('#', ''));
   const searchParams = new URLSearchParams(search);
 
-  const isRecoveryHash = hashParams.get('type') === 'recovery';
-  const isRecoveryCode = searchParams.has('code');
+  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.has('code');
 
-  if (isRecoveryHash || isRecoveryCode) {
-    console.log('Recovery flow détecté');
-
-    // Écoute l'événement PASSWORD_RECOVERY que Supabase émet automatiquement
-    // quand detectSessionInUrl:true et qu'il y a un token de recovery dans l'URL
+  if (isRecovery) {
+    // Avec detectSessionInUrl:true, Supabase échange automatiquement le code/token
+    // et émet PASSWORD_RECOVERY. On écoute avant tout le reste.
     const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event);
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && isRecoveryHash)) {
+      if (event === 'PASSWORD_RECOVERY') {
+        subscription.unsubscribe();
+        history.replaceState(null, '', window.location.pathname);
+        document.getElementById('sidebar').style.display = 'none';
+        document.getElementById('qr-fab').style.display = 'none';
+        Pages.renderPasswordRecovery();
+      } else if (event === 'SIGNED_IN' && isRecovery) {
+        // Certaines versions de Supabase émettent SIGNED_IN au lieu de PASSWORD_RECOVERY
         subscription.unsubscribe();
         history.replaceState(null, '', window.location.pathname);
         document.getElementById('sidebar').style.display = 'none';
@@ -426,21 +421,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         Pages.renderPasswordRecovery();
       }
     });
-
-    // Timeout de sécurité : si pas d'événement après 3s, tente quand même
-    setTimeout(async () => {
-      const { data: { session } } = await db.auth.getSession();
-      console.log('Session après timeout:', session?.user?.email);
-      if (session) {
-        history.replaceState(null, '', window.location.pathname);
-        document.getElementById('sidebar').style.display = 'none';
-        document.getElementById('qr-fab').style.display = 'none';
-        Pages.renderPasswordRecovery();
-      } else {
-        App.init();
-      }
-    }, 3000);
-
     return;
   }
 
