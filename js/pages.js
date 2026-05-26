@@ -310,6 +310,7 @@ const Pages = {
           <td>
             <div class="btn-group">
               <button class="btn btn-ghost btn-sm" onclick="Pages.openEditItem('${item.id}')">✏️</button>
+              <button class="btn btn-ghost btn-sm" onclick="Pages.downloadItemQR('${Utils.escapeHtml(item.qr_code)}','${Utils.escapeHtml(item.type)}','${Utils.escapeHtml(item.brand||'')}','${Utils.escapeHtml(item.model||'')}')" title="Télécharger le QR code">📥</button>
               ${Auth.isAdmin()?`<button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages.deleteItem('${item.id}')">🗑</button>`:''}
             </div>
           </td>
@@ -327,13 +328,30 @@ const Pages = {
   // ENREGISTREMENT OBJET - lieu non obligatoire, type avec picker
   // ============================================================
   renderRegisterItem(qrCode) {
-    document.getElementById('register-qr').value = qrCode || Utils.generateQR();
+    // Génère le QR avec le type si déjà saisi, sinon générique
+    const typeVal = document.getElementById('register-type')?.value?.trim() || '';
+    document.getElementById('register-qr').value = qrCode || Utils.generateQR(typeVal);
     document.getElementById('register-type').value = '';
     document.getElementById('register-brand').value = '';
     document.getElementById('register-model').value = '';
     document.getElementById('register-desc').value = '';
     document.getElementById('register-location').value = '';
     UI.modal.open('register-modal');
+
+    // Régénère le QR quand le type change (seulement si pas de QR déjà scanné)
+    if (!qrCode) {
+      const typeEl = document.getElementById('register-type');
+      const qrEl = document.getElementById('register-qr');
+      const onTypeChange = () => {
+        qrEl.value = Utils.generateQR(typeEl.value.trim());
+      };
+      // Retire l'ancien listener si existant
+      typeEl.removeEventListener('change', typeEl._qrGenListener);
+      typeEl.removeEventListener('blur', typeEl._qrGenListener);
+      typeEl._qrGenListener = onTypeChange;
+      typeEl.addEventListener('change', onTypeChange);
+      typeEl.addEventListener('blur', onTypeChange);
+    }
   },
 
   // ============================================================
@@ -389,6 +407,75 @@ const Pages = {
   // ============================================================
   // MODIFIER OBJET
   // ============================================================
+  // Télécharge le QR code d'un article en PNG
+  async downloadItemQR(code, type, brand, model) {
+    const size = 200;
+    const padding = 16;
+    const fontSize = 12;
+    const lineH = 17;
+
+    // Lignes de texte
+    const lines = [];
+    if (type) lines.push(type);
+    if (brand || model) lines.push([brand, model].filter(Boolean).join(' '));
+    lines.push(code);
+
+    // Canvas composite
+    const canvasW = size + padding * 2;
+    const canvasH = size + padding + lines.length * lineH + padding;
+    const scale = 2;
+    const c = document.createElement('canvas');
+    c.width = canvasW * scale;
+    c.height = canvasH * scale;
+    const ctx = c.getContext('2d');
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Génère le QR dans un div temporaire
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    document.body.appendChild(tempDiv);
+
+    await new Promise(resolve => {
+      new QRCode(tempDiv, {
+        text: code, width: size, height: size,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      setTimeout(resolve, 300);
+    });
+
+    const qrCanvas = tempDiv.querySelector('canvas');
+    const qrImg = tempDiv.querySelector('img');
+
+    if (qrCanvas) {
+      ctx.drawImage(qrCanvas, padding, padding, size, size);
+    } else if (qrImg) {
+      await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); });
+      ctx.drawImage(qrImg, padding, padding, size, size);
+    }
+    document.body.removeChild(tempDiv);
+
+    // Texte en dessous
+    ctx.textAlign = 'center';
+    const textX = canvasW / 2;
+    lines.forEach((line, j) => {
+      if (j === 0) { ctx.font = `bold ${fontSize}px sans-serif`; ctx.fillStyle = '#1a1d23'; }
+      else if (j === lines.length - 1) { ctx.font = `${fontSize - 1}px monospace`; ctx.fillStyle = '#666'; }
+      else { ctx.font = `${fontSize - 1}px sans-serif`; ctx.fillStyle = '#5A6070'; }
+      ctx.fillText(line, textX, size + padding + fontSize + j * lineH);
+    });
+
+    const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    const url = c.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}.png`;
+    a.click();
+  },
+
   async openEditItem(itemId) {
     const { data: item } = await db.from('items').select('*').eq('id', itemId).single();
     if (!item) { UI.toast('Objet introuvable', 'error'); return; }
@@ -422,8 +509,8 @@ const Pages = {
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <h1 class="page-header-title">QR Codes</h1>
-        <div class="btn-group no-print">
-          <button class="btn btn-secondary btn-sm" id="download-zip-btn">📥 Télécharger ZIP</button>
+        <div class="qr-header-btns no-print">
+          <button class="btn btn-secondary btn-sm" id="download-zip-btn">📥 ZIP</button>
           <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Imprimer</button>
         </div>
       </div>
@@ -562,7 +649,7 @@ const Pages = {
     const prefix = (document.getElementById('blank-prefix')?.value||'INV').trim().toUpperCase();
     const size = parseInt(document.getElementById('blank-size')?.value||'80');
     const labelPos = document.getElementById('blank-label-pos')?.value||'below';
-    const codes = Array.from({length:count},()=>({code:Utils.generateQR(prefix),label1:'',label2:'',label3:''}));
+    const codes = Array.from({length:count},()=>({code:Utils.generateQR(''),label1:'',label2:'',label3:''}));
     const container = document.getElementById('qr-grid-blank');
     if (!container) return;
     container.innerHTML = '';

@@ -313,10 +313,47 @@ const Utils = {
     });
   },
   todayISO() { return new Date().toISOString().split('T')[0]; },
-  generateQR(prefix = 'INV') {
-    const ts = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${ts}-${rand}`;
+  // Mapping types → abréviation 3-5 lettres
+  typeToCode(typeName) {
+    if (!typeName) return 'DIV';
+    const map = {
+      'ordinateur portable': 'PC',
+      'ordinateur fixe': 'PC',
+      'ordinateur': 'PC',
+      'téléphone': 'PHONE',
+      'telephone': 'PHONE',
+      'smartphone': 'PHONE',
+      'tablette': 'TAB',
+      'appareil photo': 'CAM',
+      'caméra': 'CAM',
+      'camera': 'CAM',
+      'disque dur': 'HDD',
+      'ssd': 'SSD',
+      'clé usb': 'USB',
+      'cle usb': 'USB',
+      'usb': 'USB',
+      'gps': 'GPS',
+      'enregistreur audio': 'AUDIO',
+      'enregistreur': 'AUDIO',
+      'imprimante': 'PRINT',
+      'scanner': 'SCAN',
+      'drone': 'DRONE',
+      'radiotéléphone': 'RADIO',
+      'radiotelephone': 'RADIO',
+      'radio': 'RADIO',
+    };
+    const key = typeName.toLowerCase().trim();
+    if (map[key]) return map[key];
+    // Si pas dans la map : prend les 4 premières lettres en majuscule
+    const clean = typeName.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase();
+    return clean.substring(0, 4) || 'DIV';
+  },
+
+  generateQR(typeName = '') {
+    const prefix = 'AC3N38';
+    const typeCode = this.typeToCode(typeName);
+    const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `${prefix}-${typeCode}-${rand}`;
   },
   escapeHtml(str) {
     if (!str) return '';
