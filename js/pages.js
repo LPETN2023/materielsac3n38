@@ -766,11 +766,17 @@ const Pages = {
         canvasW = qrSize + padding + labelWidth + padding;
         canvasH = Math.max(qrSize, labelLines.length * lineH) + padding * 2;
       } else {
-        // Largeur basée sur le code QR (le plus long) avec police monospace
-        const tmpMono = document.createElement('canvas').getContext('2d');
-        tmpMono.font = `${Math.round(fontSize*0.9)}px monospace`;
-        const codeW = tmpMono.measureText(labelLines[labelLines.length-1] || '').width;
-        canvasW = Math.max(qrSize + padding * 2, codeW + padding * 3, maxLW + padding * 2);
+        // Mesure précise de chaque ligne avec sa police réelle
+        const tmpExact = document.createElement('canvas').getContext('2d');
+        let maxExactW = 0;
+        labelLines.forEach((line, j) => {
+          const font = j === 0 ? `bold ${fontSize}px sans-serif`
+            : j === labelLines.length - 1 ? `${Math.round(fontSize*0.9)}px monospace`
+            : `${Math.round(fontSize*0.85)}px sans-serif`;
+          tmpExact.font = font;
+          maxExactW = Math.max(maxExactW, tmpExact.measureText(line).width);
+        });
+        canvasW = Math.max(qrSize + padding * 2, Math.ceil(maxExactW) + padding * 3);
         canvasH = qrSize + padding + labelLines.length * lineH + padding;
         labelWidth = 0;
       }
@@ -803,12 +809,24 @@ const Pages = {
           if (cur) ls.push(cur);
           return ls;
         };
+        // Calcule la hauteur totale du bloc texte pour centrer verticalement
+        let totalLines = 0;
+        labelLines.forEach((line, j) => {
+          const font = j === 0 ? `bold ${fontSize}px sans-serif`
+            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
+            : `${Math.round(fontSize*0.9)}px sans-serif`;
+          totalLines += wrapL(line, font).length;
+        });
+        const blockH = totalLines * lineH;
+        const blockTop = padding + Math.round((qrSize - blockH) / 2);
+        let tyR = Math.max(padding, blockTop);
+
         labelLines.forEach((line, j) => {
           const font = j === 0 ? `bold ${fontSize}px sans-serif`
             : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
             : `${Math.round(fontSize*0.9)}px sans-serif`;
           ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
-          wrapL(line, font).forEach(wl => { ctx.fillText(wl, textX, ty); ty += lineH; });
+          wrapL(line, font).forEach(wl => { ctx.fillText(wl, textX, tyR); tyR += lineH; });
         });
       } else {
         // QR centré en haut
