@@ -235,6 +235,7 @@ const App = {
       this.navigate('login');
     }
     this.bindGlobalEvents();
+    return session;
   },
 
   showApp() {
@@ -376,5 +377,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  App.init();
+  // Gestion des raccourcis PWA (?action=scan ou ?page=inventory)
+  const shortcutParams = new URLSearchParams(window.location.search);
+  const action = shortcutParams.get('action');
+  const shortcutPage = shortcutParams.get('page');
+  if (action || shortcutPage) {
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  await App.init();
+
+  // Lance le scanner directement si raccourci "Scanner"
+  if (action === 'scan' && Auth.isAuthenticated()) {
+    setTimeout(() => App.openQRFlow(), 500);
+  }
+  // Navigue vers la page si raccourci "Inventaire"
+  if (shortcutPage && Auth.isAuthenticated()) {
+    App.navigate(shortcutPage);
+  }
 });
