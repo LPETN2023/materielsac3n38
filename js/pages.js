@@ -434,8 +434,7 @@ const Pages = {
 
     // Génère le QR dans un div temporaire
     const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
+    tempDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
     document.body.appendChild(tempDiv);
 
     await new Promise(resolve => {
@@ -458,14 +457,39 @@ const Pages = {
     }
     document.body.removeChild(tempDiv);
 
-    // Texte en dessous
+    // Helper : découpe une ligne si trop longue
+    const wrapText = (ctx, text, maxWidth) => {
+      const words = text.split(' ');
+      const wrapped = [];
+      let current = '';
+      for (const word of words) {
+        const test = current ? current + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && current) {
+          wrapped.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
+      }
+      if (current) wrapped.push(current);
+      return wrapped.length ? wrapped : [text];
+    };
+
+    // Texte en dessous avec retour à la ligne automatique
     ctx.textAlign = 'center';
+    const maxTextW = canvasW - padding * 2;
     const textX = canvasW / 2;
+    let textY = size + padding + fontSize;
+
     lines.forEach((line, j) => {
       if (j === 0) { ctx.font = `bold ${fontSize}px sans-serif`; ctx.fillStyle = '#1a1d23'; }
       else if (j === lines.length - 1) { ctx.font = `${fontSize - 1}px monospace`; ctx.fillStyle = '#666'; }
       else { ctx.font = `${fontSize - 1}px sans-serif`; ctx.fillStyle = '#5A6070'; }
-      ctx.fillText(line, textX, size + padding + fontSize + j * lineH);
+      const wrappedLines = wrapText(ctx, line, maxTextW);
+      wrappedLines.forEach(wl => {
+        ctx.fillText(wl, textX, textY);
+        textY += lineH;
+      });
     });
 
     const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
@@ -573,8 +597,10 @@ const Pages = {
                   <input type="number" class="form-control" id="blank-count" value="20" min="1" max="200"/>
                 </div>
                 <div class="form-group" style="margin-bottom:0">
-                  <label class="form-label">Préfixe</label>
-                  <input type="text" class="form-control font-mono" id="blank-prefix" value="INV" maxlength="10"/>
+                  <label class="form-label">Type de matériel</label>
+                  <select class="form-control" id="blank-type">
+                    <option value="">Chargement...</option>
+                  </select>
                 </div>
                 <div class="form-group" style="margin-bottom:0">
                   <label class="form-label">Taille</label>
@@ -612,6 +638,15 @@ const Pages = {
       </div>`;
 
     await Pages._loadLinkedQRCodes();
+
+    // Charge les types dans le dropdown des codes vierges
+    const blankTypeSelect = document.getElementById('blank-type');
+    if (blankTypeSelect) {
+      const types = await ItemTypes.getAll();
+      blankTypeSelect.innerHTML = '<option value="">— Non défini (DIV) —</option>' +
+        types.map(t => `<option value="${Utils.escapeHtml(t.name)}">${Utils.escapeHtml(t.name)} (${Utils.escapeHtml(t.code||'DIV')})</option>`).join('');
+    }
+
     document.getElementById('refresh-qr-btn')?.addEventListener('click', Pages._loadLinkedQRCodes);
     document.getElementById('qr-size')?.addEventListener('change', Pages._loadLinkedQRCodes);
     document.getElementById('qr-label-pos')?.addEventListener('change', Pages._loadLinkedQRCodes);
@@ -644,16 +679,21 @@ const Pages = {
     })), size, labelPos);
   },
 
-  _generateBlankQRCodes() {
+  async _generateBlankQRCodes() {
     const count = Math.min(parseInt(document.getElementById('blank-count')?.value||'20'),200);
-    const prefix = (document.getElementById('blank-prefix')?.value||'INV').trim().toUpperCase();
+    const typeSelect = document.getElementById('blank-type');
+    const typeName = typeSelect?.options[typeSelect.selectedIndex]?.text || '';
     const size = parseInt(document.getElementById('blank-size')?.value||'80');
     const labelPos = document.getElementById('blank-label-pos')?.value||'below';
-    const codes = Array.from({length:count},()=>({code:Utils.generateQR(''),label1:'',label2:'',label3:''}));
     const container = document.getElementById('qr-grid-blank');
     if (!container) return;
+    container.innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div></div>';
+    // Génère tous les codes en parallèle
+    const codeList = await Promise.all(
+      Array.from({length:count}, () => Utils.generateQR(typeName === 'Chargement...' ? '' : typeName))
+    );
     container.innerHTML = '';
-    Pages._renderQRGrid(container, codes, size, labelPos);
+    Pages._renderQRGrid(container, codeList.map(c=>({code:c,label1:'',label2:'',label3:''})), size, labelPos);
   },
 
   // Export ZIP : un PNG par QR code
@@ -751,43 +791,52 @@ const Pages = {
       // Dessine le QR code
       if (labelPos === 'right') {
         ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
-        // Texte à droite
+        // Texte à droite avec wrapping
         const textX = qrSize + padding * 2;
-        const textStartY = padding + fontSize;
-        ctx.fillStyle = '#1a1d23';
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        labelLines.forEach((line, j) => {
-          if (j === 0) {
-            ctx.font = `bold ${fontSize}px sans-serif`;
-          } else if (line.startsWith('📍')) {
-            ctx.font = `${Math.round(fontSize * 0.85)}px sans-serif`;
-            ctx.fillStyle = '#1B3A6B';
-          } else {
-            ctx.font = `${Math.round(fontSize * 0.9)}px sans-serif`;
-            ctx.fillStyle = '#5A6070';
+        const maxTextW = labelWidth - padding;
+        let ty = padding + fontSize;
+        const wrapL = (text, font) => {
+          ctx.font = font;
+          if (ctx.measureText(text).width <= maxTextW) return [text];
+          const words = text.split(' '); const ls = []; let cur = '';
+          for (const w of words) {
+            const t = cur ? cur + ' ' + w : w;
+            if (ctx.measureText(t).width > maxTextW && cur) { ls.push(cur); cur = w; } else cur = t;
           }
-          ctx.fillText(line, textX, textStartY + j * lineH);
-          ctx.fillStyle = '#1a1d23';
+          if (cur) ls.push(cur);
+          return ls;
+        };
+        labelLines.forEach((line, j) => {
+          const font = j === 0 ? `bold ${fontSize}px sans-serif`
+            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
+            : `${Math.round(fontSize*0.9)}px sans-serif`;
+          ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
+          wrapL(line, font).forEach(wl => { ctx.fillText(wl, textX, ty); ty += lineH; });
         });
       } else {
         // QR en haut
         ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
-        // Texte en dessous
+        // Texte en dessous avec wrapping
         ctx.textAlign = 'center';
-        const textStartY = qrSize + padding + fontSize;
-        labelLines.forEach((line, j) => {
-          if (j === 0) {
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.fillStyle = '#1a1d23';
-          } else if (line.startsWith('📍')) {
-            ctx.font = `${Math.round(fontSize * 0.85)}px sans-serif`;
-            ctx.fillStyle = '#1B3A6B';
-          } else {
-            ctx.font = `${Math.round(fontSize * 0.9)}px sans-serif`;
-            ctx.fillStyle = '#5A6070';
+        const maxTW = canvasW - padding * 2;
+        let ty2 = qrSize + padding + fontSize;
+        const wrapC = (text, font) => {
+          ctx.font = font;
+          if (ctx.measureText(text).width <= maxTW) return [text];
+          const words = text.split(' '); const ls = []; let cur = '';
+          for (const w of words) {
+            const t = cur ? cur + ' ' + w : w;
+            if (ctx.measureText(t).width > maxTW && cur) { ls.push(cur); cur = w; } else cur = t;
           }
-          ctx.fillText(line, canvasW / 2, textStartY + j * lineH);
-          ctx.fillStyle = '#1a1d23';
+          if (cur) ls.push(cur);
+          return ls;
+        };
+        labelLines.forEach((line, j) => {
+          const font = j === 0 ? `bold ${fontSize}px sans-serif`
+            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
+            : `${Math.round(fontSize*0.9)}px sans-serif`;
+          ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
+          wrapC(line, font).forEach(wl => { ctx.fillText(wl, canvasW / 2, ty2); ty2 += lineH; });
         });
       }
 
@@ -1050,6 +1099,7 @@ const Pages = {
     await Pages._loadTypes();
     document.getElementById('add-type-btn')?.addEventListener('click', () => {
       document.getElementById('new-type-name').value='';
+      document.getElementById('new-type-code').value='';
       UI.modal.open('add-type-modal');
       setTimeout(()=>document.getElementById('new-type-name').focus(),200);
     });
