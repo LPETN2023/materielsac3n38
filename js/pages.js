@@ -807,19 +807,23 @@ const Pages = {
           wrapL(line, font).forEach(wl => { ctx.fillText(wl, textX, ty); ty += lineH; });
         });
       } else {
-        // QR en haut
-        ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
-        // Texte en dessous avec wrapping
+        // QR centré en haut
+        const qrOffsetX = Math.round((canvasW - qrSize) / 2);
+        ctx.drawImage(qrImage, qrOffsetX, padding, qrSize, qrSize);
+
+        // Texte centré en dessous avec wrapping char par char
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const cx = Math.round(canvasW / 2);
         const maxTW = canvasW - padding * 2;
-        let ty2 = qrSize + padding + fontSize;
+        let ty2 = qrSize + padding;
         const wrapC = (text, font) => {
           ctx.font = font;
           if (ctx.measureText(text).width <= maxTW) return [text];
-          const words = text.split(' '); const ls = []; let cur = '';
-          for (const w of words) {
-            const t = cur ? cur + ' ' + w : w;
-            if (ctx.measureText(t).width > maxTW && cur) { ls.push(cur); cur = w; } else cur = t;
+          const ls = []; let cur = '';
+          for (const ch of text) {
+            if (ctx.measureText(cur + ch).width > maxTW && cur) { ls.push(cur); cur = ch; }
+            else cur += ch;
           }
           if (cur) ls.push(cur);
           return ls;
@@ -829,7 +833,7 @@ const Pages = {
             : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
             : `${Math.round(fontSize*0.9)}px sans-serif`;
           ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
-          wrapC(line, font).forEach(wl => { ctx.fillText(wl, canvasW / 2, ty2); ty2 += lineH; });
+          wrapC(line, font).forEach(wl => { ctx.fillText(wl, cx, ty2); ty2 += lineH; });
         });
       }
 
