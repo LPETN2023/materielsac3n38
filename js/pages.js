@@ -413,6 +413,7 @@ const Pages = {
     const padding = 16;
     const fontSize = 12;
     const lineH = 17;
+    const scale = 2;
 
     // Lignes de texte
     const lines = [];
@@ -420,10 +421,20 @@ const Pages = {
     if (brand || model) lines.push([brand, model].filter(Boolean).join(' '));
     lines.push(code);
 
-    // Canvas composite
-    const canvasW = size + padding * 2;
+    // Mesure la largeur max du texte sur un canvas temporaire
+    const tmpC = document.createElement('canvas');
+    const tmpCtx = tmpC.getContext('2d');
+    let maxTextW = 0;
+    lines.forEach((line, j) => {
+      tmpCtx.font = j === 0 ? `bold ${fontSize}px sans-serif`
+        : j === lines.length - 1 ? `${fontSize - 1}px monospace`
+        : `${fontSize - 1}px sans-serif`;
+      maxTextW = Math.max(maxTextW, tmpCtx.measureText(line).width);
+    });
+
+    // Canvas assez large pour le QR et le texte
+    const canvasW = Math.max(size + padding * 2, maxTextW + padding * 2);
     const canvasH = size + padding + lines.length * lineH + padding;
-    const scale = 2;
     const c = document.createElement('canvas');
     c.width = canvasW * scale;
     c.height = canvasH * scale;
@@ -477,15 +488,15 @@ const Pages = {
 
     // Texte en dessous avec retour à la ligne automatique
     ctx.textAlign = 'center';
-    const maxTextW = canvasW - padding * 2;
     const textX = canvasW / 2;
+    const availW = canvasW - padding * 2;
     let textY = size + padding + fontSize;
 
     lines.forEach((line, j) => {
       if (j === 0) { ctx.font = `bold ${fontSize}px sans-serif`; ctx.fillStyle = '#1a1d23'; }
       else if (j === lines.length - 1) { ctx.font = `${fontSize - 1}px monospace`; ctx.fillStyle = '#666'; }
       else { ctx.font = `${fontSize - 1}px sans-serif`; ctx.fillStyle = '#5A6070'; }
-      const wrappedLines = wrapText(ctx, line, maxTextW);
+      const wrappedLines = wrapText(ctx, line, availW);
       wrappedLines.forEach(wl => {
         ctx.fillText(wl, textX, textY);
         textY += lineH;
@@ -760,22 +771,30 @@ const Pages = {
       if (!qrImage) return;
 
       // Crée le canvas composite (QR + texte)
-      const scale = 2; // Haute résolution
+      const scale = 2;
       const fontSize = Math.max(10, Math.round(qrSize * 0.09));
       const lineH = Math.round(fontSize * 1.4);
       const padding = Math.round(qrSize * 0.08);
 
-      let canvasW, canvasH;
+      // Mesure le texte le plus long pour ajuster la largeur
+      const tmpC2 = document.createElement('canvas');
+      const tmpCtx2 = tmpC2.getContext('2d');
+      let maxLW = 0;
+      labelLines.forEach(l => {
+        tmpCtx2.font = `${fontSize}px sans-serif`;
+        maxLW = Math.max(maxLW, tmpCtx2.measureText(l).width);
+      });
+
+      let canvasW, canvasH, labelWidth;
 
       if (labelPos === 'right') {
-        // QR à gauche, texte à droite
-        const textW = Math.round(qrSize * 1.5);
-        canvasW = qrSize + padding + textW + padding * 2;
+        labelWidth = Math.max(Math.round(qrSize * 1.5), maxLW + padding);
+        canvasW = qrSize + padding + labelWidth + padding;
         canvasH = Math.max(qrSize, labelLines.length * lineH) + padding * 2;
       } else {
-        // QR en haut, texte en dessous
-        canvasW = qrSize + padding * 2;
+        canvasW = Math.max(qrSize + padding * 2, maxLW + padding * 2);
         canvasH = qrSize + padding + labelLines.length * lineH + padding;
+        labelWidth = 0;
       }
 
       const c = document.createElement('canvas');
