@@ -1604,11 +1604,13 @@ html, body {
 
 @media (max-width: 480px) {
   .qr-header-btns {
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    gap: 6px;
+    flex-shrink: 0;
   }
   .qr-header-btns .btn {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 8px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 }
