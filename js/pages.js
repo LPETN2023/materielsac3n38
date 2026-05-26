@@ -766,7 +766,11 @@ const Pages = {
         canvasW = qrSize + padding + labelWidth + padding;
         canvasH = Math.max(qrSize, labelLines.length * lineH) + padding * 2;
       } else {
-        canvasW = Math.max(qrSize + padding * 2, maxLW + padding * 2);
+        // Largeur basée sur le code QR (le plus long) avec police monospace
+        const tmpMono = document.createElement('canvas').getContext('2d');
+        tmpMono.font = `${Math.round(fontSize*0.9)}px monospace`;
+        const codeW = tmpMono.measureText(labelLines[labelLines.length-1] || '').width;
+        canvasW = Math.max(qrSize + padding * 2, codeW + padding * 3, maxLW + padding * 2);
         canvasH = qrSize + padding + labelLines.length * lineH + padding;
         labelWidth = 0;
       }
