@@ -244,15 +244,38 @@ const ItemTypes = {
     const { data } = await db.from('item_types').select('*').order('sort_order').order('name');
     return data || [];
   },
-  async add(name) {
-    const { data, error } = await db.from('item_types').insert({ name: name.trim() }).select().single();
-    if (!error) await Logs.write('ITEMTYPE_CREATE', 'item_type', data.id, { name });
+
+  async add(name, code) {
+    const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
+    const { data, error } = await db.from('item_types')
+      .insert({ name: name.trim(), code: cleanCode }).select().single();
+    if (!error) await Logs.write('ITEMTYPE_CREATE', 'item_type', data.id, { name, code: cleanCode });
     return { data, error };
   },
+
+  async update(id, name, code) {
+    const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
+    const { data, error } = await db.from('item_types')
+      .update({ name: name.trim(), code: cleanCode }).eq('id', id).select().single();
+    if (!error) await Logs.write('ITEMTYPE_UPDATE', 'item_type', id, { name, code: cleanCode });
+    return { data, error };
+  },
+
   async delete(id) {
     const { error } = await db.from('item_types').delete().eq('id', id);
     if (!error) await Logs.write('ITEMTYPE_DELETE', 'item_type', id, {});
     return { error };
+  },
+
+  // Récupère le code diminutif depuis la BDD
+  async getCode(typeName) {
+    if (!typeName) return 'DIV';
+    const { data } = await db.from('item_types')
+      .select('code').ilike('name', typeName.trim()).single();
+    if (data?.code) return data.code;
+    // Fallback : 4 premières lettres
+    const clean = typeName.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    return clean.substring(0, 4) || 'DIV';
   }
 };
 
@@ -313,45 +336,10 @@ const Utils = {
     });
   },
   todayISO() { return new Date().toISOString().split('T')[0]; },
-  // Mapping types → abréviation 3-5 lettres
-  typeToCode(typeName) {
-    if (!typeName) return 'DIV';
-    const map = {
-      'ordinateur portable': 'PC',
-      'ordinateur fixe': 'PC',
-      'ordinateur': 'PC',
-      'téléphone': 'PHONE',
-      'telephone': 'PHONE',
-      'smartphone': 'PHONE',
-      'tablette': 'TAB',
-      'appareil photo': 'CAM',
-      'caméra': 'CAM',
-      'camera': 'CAM',
-      'disque dur': 'HDD',
-      'ssd': 'SSD',
-      'clé usb': 'USB',
-      'cle usb': 'USB',
-      'usb': 'USB',
-      'gps': 'GPS',
-      'enregistreur audio': 'AUDIO',
-      'enregistreur': 'AUDIO',
-      'imprimante': 'PRINT',
-      'scanner': 'SCAN',
-      'drone': 'DRONE',
-      'radiotéléphone': 'RADIO',
-      'radiotelephone': 'RADIO',
-      'radio': 'RADIO',
-    };
-    const key = typeName.toLowerCase().trim();
-    if (map[key]) return map[key];
-    // Si pas dans la map : prend les 4 premières lettres en majuscule
-    const clean = typeName.replace(/[^a-zA-ZÀ-ÿ]/g, '').toUpperCase();
-    return clean.substring(0, 4) || 'DIV';
-  },
-
-  generateQR(typeName = '') {
+  // Génère un code QR avec le diminutif du type depuis la BDD
+  async generateQR(typeName = '') {
     const prefix = 'AC3N38';
-    const typeCode = this.typeToCode(typeName);
+    const typeCode = typeName ? await ItemTypes.getCode(typeName) : 'DIV';
     const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `${prefix}-${typeCode}-${rand}`;
   },

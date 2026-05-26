@@ -327,10 +327,10 @@ const Pages = {
   // ============================================================
   // ENREGISTREMENT OBJET - lieu non obligatoire, type avec picker
   // ============================================================
-  renderRegisterItem(qrCode) {
+  async renderRegisterItem(qrCode) {
     // Génère le QR avec le type si déjà saisi, sinon générique
     const typeVal = document.getElementById('register-type')?.value?.trim() || '';
-    document.getElementById('register-qr').value = qrCode || Utils.generateQR(typeVal);
+    document.getElementById('register-qr').value = qrCode || await Utils.generateQR(typeVal);
     document.getElementById('register-type').value = '';
     document.getElementById('register-brand').value = '';
     document.getElementById('register-model').value = '';
@@ -342,8 +342,8 @@ const Pages = {
     if (!qrCode) {
       const typeEl = document.getElementById('register-type');
       const qrEl = document.getElementById('register-qr');
-      const onTypeChange = () => {
-        qrEl.value = Utils.generateQR(typeEl.value.trim());
+      const onTypeChange = async () => {
+        qrEl.value = await Utils.generateQR(typeEl.value.trim());
       };
       // Retire l'ancien listener si existant
       typeEl.removeEventListener('change', typeEl._qrGenListener);
@@ -1065,10 +1065,16 @@ const Pages = {
       return;
     }
     el.innerHTML = `<div class="table-wrapper"><table>
-      <thead><tr><th>Type de matériel</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Type de matériel</th><th>Code (diminutif)</th><th>Actions</th></tr></thead>
       <tbody>${types.map(t => `<tr>
         <td style="font-weight:500">${Utils.escapeHtml(t.name)}</td>
-        <td><button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}','${Utils.escapeHtml(t.name)}')">🗑 Supprimer</button></td>
+        <td><span class="font-mono badge badge-info">${Utils.escapeHtml(t.code||'—')}</span></td>
+        <td>
+          <div class="btn-group">
+            <button class="btn btn-ghost btn-sm" onclick="Pages._editType('${t.id}','${Utils.escapeHtml(t.name)}','${Utils.escapeHtml(t.code||'')}')">✏️ Modifier</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}','${Utils.escapeHtml(t.name)}')">🗑</button>
+          </div>
+        </td>
       </tr>`).join('')}</tbody></table></div>`;
   },
 
@@ -1077,6 +1083,13 @@ const Pages = {
     const { error } = await ItemTypes.delete(id);
     if (error) UI.toast('Erreur', 'error');
     else { UI.toast('Type supprimé', 'success'); Pages._loadTypes(); }
+  },
+
+  _editType(id, name, code) {
+    document.getElementById('edit-type-id').value = id;
+    document.getElementById('edit-type-name').value = name;
+    document.getElementById('edit-type-code').value = code;
+    UI.modal.open('edit-type-modal');
   },
 
   async openTypePicker(targetId) {
@@ -1274,15 +1287,29 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const btn = document.getElementById('add-type-submit');
     const name = document.getElementById('new-type-name').value.trim();
+    const code = document.getElementById('new-type-code').value.trim();
     if (!name) { UI.toast('Saisissez un nom','warning'); return; }
+    if (!code) { UI.toast('Saisissez un code diminutif','warning'); return; }
     UI.setLoading(btn,true);
-    const { error } = await ItemTypes.add(name);
+    const { error } = await ItemTypes.add(name, code);
     UI.setLoading(btn,false);
     if (error) UI.toast(error.code==='23505'?'Ce type existe déjà':'Erreur : '+error.message,'error');
     else { UI.toast('Type ajouté !','success'); UI.modal.close('add-type-modal'); Pages._loadTypes(); }
   });
 
-  document.getElementById('new-type-name')?.addEventListener('keydown', e => {
-    if(e.key==='Enter') document.getElementById('add-type-submit')?.click();
+  // EDIT TYPE
+  document.getElementById('edit-type-form')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('edit-type-submit');
+    const id = document.getElementById('edit-type-id').value;
+    const name = document.getElementById('edit-type-name').value.trim();
+    const code = document.getElementById('edit-type-code').value.trim();
+    if (!name) { UI.toast('Saisissez un nom','warning'); return; }
+    if (!code) { UI.toast('Saisissez un code diminutif','warning'); return; }
+    UI.setLoading(btn,true);
+    const { error } = await ItemTypes.update(id, name, code);
+    UI.setLoading(btn,false);
+    if (error) UI.toast('Erreur : '+error.message,'error');
+    else { UI.toast('Type modifié !','success'); UI.modal.close('edit-type-modal'); Pages._loadTypes(); }
   });
 });

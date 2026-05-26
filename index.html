@@ -337,14 +337,47 @@
     </div>
     <form id="add-type-form">
       <div class="modal-body">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Nom du type</label>
+        <div class="form-group">
+          <label class="form-label">Nom du type <span class="required">*</span></label>
           <input type="text" id="new-type-name" class="form-control" placeholder="Ex: Drone, Radiotéléphone..." required/>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Code diminutif <span class="required">*</span></label>
+          <input type="text" id="new-type-code" class="form-control font-mono" placeholder="Ex: DRONE, RADIO..." maxlength="8" required style="text-transform:uppercase"/>
+          <span class="form-hint">2 à 8 caractères, lettres et chiffres uniquement. Utilisé dans le code QR.</span>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('add-type-modal')">Annuler</button>
         <button type="submit" class="btn btn-primary" id="add-type-submit">Ajouter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL MODIFIER TYPE -->
+<div class="modal-backdrop" id="edit-type-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">✏️ Modifier le type</span>
+      <button class="modal-close" onclick="UI.modal.close('edit-type-modal')">✕</button>
+    </div>
+    <form id="edit-type-form">
+      <div class="modal-body">
+        <input type="hidden" id="edit-type-id"/>
+        <div class="form-group">
+          <label class="form-label">Nom du type <span class="required">*</span></label>
+          <input type="text" id="edit-type-name" class="form-control" required/>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">Code diminutif <span class="required">*</span></label>
+          <input type="text" id="edit-type-code" class="form-control font-mono" maxlength="8" required style="text-transform:uppercase"/>
+          <span class="form-hint">2 à 8 caractères. Utilisé dans le code QR.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="UI.modal.close('edit-type-modal')">Annuler</button>
+        <button type="submit" class="btn btn-primary" id="edit-type-submit">💾 Enregistrer</button>
       </div>
     </form>
   </div>
