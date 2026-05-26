@@ -409,32 +409,36 @@ const Pages = {
   // ============================================================
   // Télécharge le QR code d'un article en PNG
   async downloadItemQR(code, type, brand, model) {
+    const canvasW = 280;
     const size = 200;
-    const padding = 16;
     const fontSize = 12;
     const lineH = 17;
     const scale = 2;
+    const maxTextW = canvasW - 16;
 
-    // Lignes de texte
     const lines = [];
-    if (type) lines.push(type);
-    if (brand || model) lines.push([brand, model].filter(Boolean).join(' '));
-    lines.push(code);
+    if (type) lines.push({ text: type, font: `bold ${fontSize}px sans-serif`, color: '#1a1d23' });
+    if (brand || model) lines.push({ text: [brand, model].filter(Boolean).join(' '), font: `${fontSize-1}px sans-serif`, color: '#5A6070' });
+    lines.push({ text: code, font: `${fontSize-1}px monospace`, color: '#888' });
 
-    // Mesure la largeur max du texte sur un canvas temporaire
+    const wrapLine = (ctx, text, font, maxW) => {
+      ctx.font = font;
+      if (ctx.measureText(text).width <= maxW) return [text];
+      const result = []; let cur = '';
+      for (const ch of text) {
+        if (ctx.measureText(cur + ch).width > maxW && cur) { result.push(cur); cur = ch; }
+        else cur += ch;
+      }
+      if (cur) result.push(cur);
+      return result;
+    };
+
     const tmpC = document.createElement('canvas');
     const tmpCtx = tmpC.getContext('2d');
-    let maxTextW = 0;
-    lines.forEach((line, j) => {
-      tmpCtx.font = j === 0 ? `bold ${fontSize}px sans-serif`
-        : j === lines.length - 1 ? `${fontSize - 1}px monospace`
-        : `${fontSize - 1}px sans-serif`;
-      maxTextW = Math.max(maxTextW, tmpCtx.measureText(line).width);
-    });
+    let totalTextH = 8;
+    lines.forEach(l => { totalTextH += wrapLine(tmpCtx, l.text, l.font, maxTextW).length * lineH; });
 
-    // Canvas assez large pour le QR et le texte
-    const canvasW = Math.max(size + padding * 2, maxTextW + padding * 2);
-    const canvasH = size + padding + lines.length * lineH + padding;
+    const canvasH = 8 + size + totalTextH + 8;
     const c = document.createElement('canvas');
     c.width = canvasW * scale;
     c.height = canvasH * scale;
@@ -443,64 +447,26 @@ const Pages = {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    // Génère le QR dans un div temporaire
     const tempDiv = document.createElement('div');
     tempDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
     document.body.appendChild(tempDiv);
-
     await new Promise(resolve => {
-      new QRCode(tempDiv, {
-        text: code, width: size, height: size,
-        colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      new QRCode(tempDiv, { text: code, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
       setTimeout(resolve, 300);
     });
-
     const qrCanvas = tempDiv.querySelector('canvas');
     const qrImg = tempDiv.querySelector('img');
-
-    if (qrCanvas) {
-      ctx.drawImage(qrCanvas, padding, padding, size, size);
-    } else if (qrImg) {
-      await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); });
-      ctx.drawImage(qrImg, padding, padding, size, size);
-    }
+    const qrX = (canvasW - size) / 2;
+    if (qrCanvas) { ctx.drawImage(qrCanvas, qrX, 8, size, size); }
+    else if (qrImg) { await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); }); ctx.drawImage(qrImg, qrX, 8, size, size); }
     document.body.removeChild(tempDiv);
 
-    // Helper : découpe une ligne si trop longue
-    const wrapText = (ctx, text, maxWidth) => {
-      const words = text.split(' ');
-      const wrapped = [];
-      let current = '';
-      for (const word of words) {
-        const test = current ? current + ' ' + word : word;
-        if (ctx.measureText(test).width > maxWidth && current) {
-          wrapped.push(current);
-          current = word;
-        } else {
-          current = test;
-        }
-      }
-      if (current) wrapped.push(current);
-      return wrapped.length ? wrapped : [text];
-    };
-
-    // Texte en dessous avec retour à la ligne automatique
     ctx.textAlign = 'center';
-    const textX = canvasW / 2;
-    const availW = canvasW - padding * 2;
-    let textY = size + padding + fontSize;
-
-    lines.forEach((line, j) => {
-      if (j === 0) { ctx.font = `bold ${fontSize}px sans-serif`; ctx.fillStyle = '#1a1d23'; }
-      else if (j === lines.length - 1) { ctx.font = `${fontSize - 1}px monospace`; ctx.fillStyle = '#666'; }
-      else { ctx.font = `${fontSize - 1}px sans-serif`; ctx.fillStyle = '#5A6070'; }
-      const wrappedLines = wrapText(ctx, line, availW);
-      wrappedLines.forEach(wl => {
-        ctx.fillText(wl, textX, textY);
-        textY += lineH;
-      });
+    let textY = 8 + size + lineH;
+    lines.forEach(l => {
+      ctx.font = l.font;
+      ctx.fillStyle = l.color;
+      wrapLine(ctx, l.text, l.font, maxTextW).forEach(wl => { ctx.fillText(wl, canvasW / 2, textY); textY += lineH; });
     });
 
     const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
