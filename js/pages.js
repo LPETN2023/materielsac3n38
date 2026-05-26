@@ -456,17 +456,25 @@ const Pages = {
     });
     const qrCanvas = tempDiv.querySelector('canvas');
     const qrImg = tempDiv.querySelector('img');
-    const qrX = (canvasW - size) / 2;
-    if (qrCanvas) { ctx.drawImage(qrCanvas, qrX, 8, size, size); }
-    else if (qrImg) { await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); }); ctx.drawImage(qrImg, qrX, 8, size, size); }
+    // Centre le QR : espace = (largeur totale - taille QR) / 2
+    const qrX = Math.round((canvasW - size) / 2);
+    const qrY = 8;
+    if (qrCanvas) { ctx.drawImage(qrCanvas, qrX, qrY, size, size); }
+    else if (qrImg) { await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); }); ctx.drawImage(qrImg, qrX, qrY, size, size); }
     document.body.removeChild(tempDiv);
 
+    // Texte centré sous le QR
+    const cx = Math.round(canvasW / 2);
     ctx.textAlign = 'center';
-    let textY = 8 + size + lineH;
+    ctx.textBaseline = 'top';
+    let textY = qrY + size + 8;
     lines.forEach(l => {
       ctx.font = l.font;
       ctx.fillStyle = l.color;
-      wrapLine(ctx, l.text, l.font, maxTextW).forEach(wl => { ctx.fillText(wl, canvasW / 2, textY); textY += lineH; });
+      wrapLine(ctx, l.text, l.font, maxTextW).forEach(wl => {
+        ctx.fillText(wl, cx, textY);
+        textY += lineH;
+      });
     });
 
     const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
