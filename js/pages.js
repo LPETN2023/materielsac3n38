@@ -1134,7 +1134,7 @@ const Pages = {
       return;
     }
     el.innerHTML = `<div class="table-wrapper"><table>
-      <thead><tr><th>Type de matériel</th><th>Code (diminutif)</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Type de matériel</th><th>Code</th><th>Actions</th></tr></thead>
       <tbody>${types.map(t => `<tr>
         <td style="font-weight:500">${Utils.escapeHtml(t.name)}</td>
         <td><span class="font-mono badge badge-info">${Utils.escapeHtml(t.code||'—')}</span></td>
