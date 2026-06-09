@@ -729,8 +729,7 @@ const Pages = {
     Pages._renderQRGrid(container, items.map(i=>({
       code: i.qr_code,
       label1: i.type,
-      label2: i.brand?`${i.brand}${i.model?' '+i.model:''}`:'',
-      label3: i.storage_location||''
+      label2: i.brand?`${i.brand}${i.model?' '+i.model:''}`:''
     })), size, labelPos);
   },
 
@@ -748,7 +747,7 @@ const Pages = {
       Array.from({length:count}, () => Utils.generateQR(typeName === 'Chargement...' ? '' : typeName))
     );
     container.innerHTML = '';
-    Pages._renderQRGrid(container, codeList.map(c=>({code:c,label1:'',label2:'',label3:''})), size, labelPos);
+    Pages._renderQRGrid(container, codeList.map(c=>({code:c,label1:'',label2:''})), size, labelPos);
   },
 
   // Export ZIP : un PNG par QR code
@@ -787,14 +786,12 @@ const Pages = {
       const code = item.dataset.code || `qrcode-${i+1}`;
       const label1 = item.dataset.label1 || '';
       const label2 = item.dataset.label2 || '';
-      const label3 = item.dataset.label3 || '';
       const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
 
       // Lignes de texte à afficher
       const labelLines = [];
       if (label1) labelLines.push(label1);
       if (label2) labelLines.push(label2);
-      if (label3) labelLines.push('📍 ' + label3);
       labelLines.push(code); // Le code est toujours affiché en dernier
 
       // Obtient l'image QR en canvas
@@ -883,7 +880,6 @@ const Pages = {
         let totalLines = 0;
         labelLines.forEach((line, j) => {
           const font = j === 0 ? `bold ${fontSize}px sans-serif`
-            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
             : `${Math.round(fontSize*0.9)}px sans-serif`;
           totalLines += wrapL(line, font).length;
         });
@@ -893,9 +889,8 @@ const Pages = {
 
         labelLines.forEach((line, j) => {
           const font = j === 0 ? `bold ${fontSize}px sans-serif`
-            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
             : `${Math.round(fontSize*0.9)}px sans-serif`;
-          ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
+          ctx.fillStyle = j === 0 ? '#1a1d23' : '#5A6070';
           wrapL(line, font).forEach(wl => { ctx.fillText(wl, textX, tyR); tyR += lineH; });
         });
       } else {
@@ -922,9 +917,9 @@ const Pages = {
         };
         labelLines.forEach((line, j) => {
           const font = j === 0 ? `bold ${fontSize}px sans-serif`
-            : line.startsWith('📍') ? `${Math.round(fontSize*0.85)}px sans-serif`
+            : j === labelLines.length - 1 ? `${Math.round(fontSize*0.9)}px monospace`
             : `${Math.round(fontSize*0.9)}px sans-serif`;
-          ctx.fillStyle = j === 0 ? '#1a1d23' : line.startsWith('📍') ? '#1B3A6B' : '#5A6070';
+          ctx.fillStyle = j === 0 ? '#1a1d23' : j === labelLines.length - 1 ? '#888888' : '#5A6070';
           wrapC(line, font).forEach(wl => { ctx.fillText(wl, cx, ty2); ty2 += lineH; });
         });
       }
@@ -954,19 +949,24 @@ const Pages = {
     container.dataset.labelPos = labelPos;
     container.dataset.qrSize = size;
 
+    // Tailles de police adaptées à la taille du QR
+    const fs1 = Math.max(9, Math.round(size * 0.14));   // type (gras)
+    const fs2 = Math.max(8, Math.round(size * 0.12));   // marque/modèle
+    const fs3 = Math.max(7, Math.round(size * 0.10));   // code mono
+
     if (labelPos === 'right') {
       container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,minmax(${minCellW}px,1fr));gap:8px`;
     } else {
-      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+16}px);gap:10px`;
+      container.style.cssText = `display:grid;grid-template-columns:repeat(auto-fill,${size+20}px);gap:10px;justify-content:start`;
     }
 
-    items.forEach(({code, label1, label2, label3}) => {
+    items.forEach(({code, label1, label2}) => {
       const wrapper = document.createElement('div');
       wrapper.className = 'qr-item';
       if (labelPos === 'right') {
-        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0`;
+        wrapper.style.cssText = `display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0;padding:6px 8px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-surface)`;
       } else {
-        wrapper.style.cssText = `flex-direction:column;align-items:center;gap:4px;width:${size+16}px`;
+        wrapper.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:4px;width:${size+20}px;padding:6px 4px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-surface)`;
       }
 
       const qrDiv = document.createElement('div');
@@ -977,20 +977,18 @@ const Pages = {
       if (labelPos === 'right') {
         label.style.cssText = `text-align:left;flex:1;min-width:0;word-break:break-word;overflow-wrap:anywhere`;
       } else {
-        label.style.cssText = `text-align:center;max-width:${size+20}px;word-break:break-word`;
+        label.style.cssText = `text-align:center;width:100%;word-break:break-word;line-height:1.3`;
       }
       label.innerHTML = [
-        label1?`<div style="font-weight:700;font-size:11px;margin-bottom:2px">${Utils.escapeHtml(label1)}</div>`:'',
-        label2?`<div style="font-size:10px;color:var(--c-text-secondary);margin-bottom:2px">${Utils.escapeHtml(label2)}</div>`:'',
-        label3?`<div style="font-size:10px;color:var(--c-text-muted);margin-bottom:3px">📍 ${Utils.escapeHtml(label3)}</div>`:'',
-        `<div class="font-mono" style="font-size:9px;color:var(--c-text-muted);letter-spacing:0.02em">${Utils.escapeHtml(code)}</div>`
+        label1?`<div style="font-weight:700;font-size:${fs1}px;color:var(--c-text);margin-bottom:1px;line-height:1.2">${Utils.escapeHtml(label1)}</div>`:'',
+        label2?`<div style="font-size:${fs2}px;color:var(--c-text-secondary);margin-bottom:2px;line-height:1.2">${Utils.escapeHtml(label2)}</div>`:'',
+        `<div class="font-mono" style="font-size:${fs3}px;color:var(--c-text-muted);letter-spacing:0.02em">${Utils.escapeHtml(code)}</div>`
       ].join('');
 
       // Stocke les données pour l'export ZIP
       wrapper.dataset.code = code;
       wrapper.dataset.label1 = label1 || '';
       wrapper.dataset.label2 = label2 || '';
-      wrapper.dataset.label3 = label3 || '';
       wrapper.dataset.qrSize = size;
 
       wrapper.appendChild(qrDiv);
