@@ -310,7 +310,7 @@ const Pages = {
           <td>
             <div class="btn-group">
               <button class="btn btn-ghost btn-sm" onclick="Pages.openEditItem('${item.id}')">✏️</button>
-              <button class="btn btn-ghost btn-sm" onclick="Pages.downloadItemQR('${Utils.escapeHtml(item.qr_code)}','${Utils.escapeHtml(item.type)}','${Utils.escapeHtml(item.brand||'')}','${Utils.escapeHtml(item.model||'')}')" title="Télécharger le QR code">📥</button>
+              <button class="btn btn-ghost btn-sm" onclick="Pages.openQRDownloadModal('${Utils.escapeHtml(item.qr_code)}','${Utils.escapeHtml(item.type)}','${Utils.escapeHtml(item.brand||'')}','${Utils.escapeHtml(item.model||'')}')" title="Télécharger le QR code">📥</button>
               ${Auth.isAdmin()?`<button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages.deleteItem('${item.id}')">🗑</button>`:''}
             </div>
           </td>
@@ -407,38 +407,82 @@ const Pages = {
   // ============================================================
   // MODIFIER OBJET
   // ============================================================
-  // Télécharge le QR code d'un article en PNG
-  async downloadItemQR(code, type, brand, model) {
-    const canvasW = 280;
-    const size = 200;
-    const fontSize = 12;
-    const lineH = 17;
+  // Ouvre le popup d'options puis télécharge le QR code en PNG
+  openQRDownloadModal(code, type, brand, model) {
+    UI.modal.open('qr-download-modal');
+    const btn = document.getElementById('dl-qr-confirm-btn');
+    // Retire l'ancien listener pour éviter les doublons
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', async () => {
+      const size = parseInt(document.getElementById('dl-qr-size').value || '80');
+      const labelPos = document.getElementById('dl-qr-label-pos').value || 'below';
+      UI.modal.close('qr-download-modal');
+      await Pages.downloadItemQR(code, type, brand, model, size, labelPos);
+    });
+  },
+
+  async downloadItemQR(code, type, brand, model, qrSize = 80, labelPos = 'below') {
     const scale = 2;
-    const maxTextW = canvasW - 16;
+    const fontSize = Math.max(10, Math.round(qrSize * 0.18));
+    const lineH = Math.round(fontSize * 1.4);
+    const padding = Math.round(qrSize * 0.15);
 
-    const lines = [];
-    if (type) lines.push({ text: type, font: `bold ${fontSize}px sans-serif`, color: '#1a1d23' });
-    if (brand || model) lines.push({ text: [brand, model].filter(Boolean).join(' '), font: `${fontSize-1}px sans-serif`, color: '#5A6070' });
-    lines.push({ text: code, font: `${fontSize-1}px monospace`, color: '#888' });
+    // Génère le QR code dans un div temporaire
+    const tempDiv = document.createElement('div');
+    tempDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
+    document.body.appendChild(tempDiv);
+    await new Promise(resolve => {
+      new QRCode(tempDiv, { text: code, width: qrSize, height: qrSize, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      setTimeout(resolve, 300);
+    });
+    const qrCanvas = tempDiv.querySelector('canvas');
+    const qrImg = tempDiv.querySelector('img');
+    let qrImage = null;
+    if (qrCanvas) {
+      qrImage = qrCanvas;
+    } else if (qrImg) {
+      await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); });
+      const c2 = document.createElement('canvas');
+      c2.width = qrImg.naturalWidth || qrImg.width;
+      c2.height = qrImg.naturalHeight || qrImg.height;
+      c2.getContext('2d').drawImage(qrImg, 0, 0);
+      qrImage = c2;
+    }
+    document.body.removeChild(tempDiv);
+    if (!qrImage) { UI.toast('Erreur génération QR', 'error'); return; }
 
-    const wrapLine = (ctx, text, font, maxW) => {
-      ctx.font = font;
-      if (ctx.measureText(text).width <= maxW) return [text];
-      const result = []; let cur = '';
-      for (const ch of text) {
-        if (ctx.measureText(cur + ch).width > maxW && cur) { result.push(cur); cur = ch; }
-        else cur += ch;
-      }
-      if (cur) result.push(cur);
-      return result;
-    };
+    // Lignes de texte (même ordre que la page QR codes)
+    const labelLines = [];
+    if (type) labelLines.push(type);
+    if (brand || model) labelLines.push([brand, model].filter(Boolean).join(' '));
+    labelLines.push(code);
 
-    const tmpC = document.createElement('canvas');
-    const tmpCtx = tmpC.getContext('2d');
-    let totalTextH = 8;
-    lines.forEach(l => { totalTextH += wrapLine(tmpCtx, l.text, l.font, maxTextW).length * lineH; });
+    // Mesure du texte le plus long
+    const tmpCtx = document.createElement('canvas').getContext('2d');
+    let maxLW = 0;
+    labelLines.forEach(l => { tmpCtx.font = `${fontSize}px sans-serif`; maxLW = Math.max(maxLW, tmpCtx.measureText(l).width); });
 
-    const canvasH = 8 + size + totalTextH + 8;
+    let canvasW, canvasH, labelWidth;
+    if (labelPos === 'right') {
+      labelWidth = Math.max(Math.round(qrSize * 1.5), maxLW + padding);
+      canvasW = qrSize + padding + labelWidth + padding;
+      canvasH = Math.max(qrSize, labelLines.length * lineH) + padding * 2;
+    } else {
+      const tmpExact = document.createElement('canvas').getContext('2d');
+      let maxExactW = 0;
+      labelLines.forEach((line, j) => {
+        const font = j === 0 ? `bold ${fontSize}px sans-serif`
+          : j === labelLines.length - 1 ? `${Math.round(fontSize*0.9)}px monospace`
+          : `${Math.round(fontSize*0.85)}px sans-serif`;
+        tmpExact.font = font;
+        maxExactW = Math.max(maxExactW, tmpExact.measureText(line).width);
+      });
+      canvasW = Math.max(qrSize + padding * 2, Math.ceil(maxExactW) + padding * 3);
+      canvasH = qrSize + padding + labelLines.length * lineH + padding;
+      labelWidth = 0;
+    }
+
     const c = document.createElement('canvas');
     c.width = canvasW * scale;
     c.height = canvasH * scale;
@@ -447,35 +491,61 @@ const Pages = {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const tempDiv = document.createElement('div');
-    tempDiv.style.cssText = 'position:absolute;left:-9999px;top:-9999px';
-    document.body.appendChild(tempDiv);
-    await new Promise(resolve => {
-      new QRCode(tempDiv, { text: code, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-      setTimeout(resolve, 300);
-    });
-    const qrCanvas = tempDiv.querySelector('canvas');
-    const qrImg = tempDiv.querySelector('img');
-    // Centre le QR : espace = (largeur totale - taille QR) / 2
-    const qrX = Math.round((canvasW - size) / 2);
-    const qrY = 8;
-    if (qrCanvas) { ctx.drawImage(qrCanvas, qrX, qrY, size, size); }
-    else if (qrImg) { await new Promise(r => { qrImg.onload = r; if (qrImg.complete) r(); }); ctx.drawImage(qrImg, qrX, qrY, size, size); }
-    document.body.removeChild(tempDiv);
+    const wrapL = (text, font, maxW) => {
+      ctx.font = font;
+      if (ctx.measureText(text).width <= maxW) return [text];
+      const words = text.split(' '); const ls = []; let cur = '';
+      for (const w of words) {
+        const t = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(t).width > maxW && cur) { ls.push(cur); cur = w; } else cur = t;
+      }
+      if (cur) ls.push(cur);
+      return ls;
+    };
 
-    // Texte centré sous le QR
-    const cx = Math.round(canvasW / 2);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    let textY = qrY + size + 8;
-    lines.forEach(l => {
-      ctx.font = l.font;
-      ctx.fillStyle = l.color;
-      wrapLine(ctx, l.text, l.font, maxTextW).forEach(wl => {
-        ctx.fillText(wl, cx, textY);
-        textY += lineH;
+    if (labelPos === 'right') {
+      ctx.drawImage(qrImage, padding, padding, qrSize, qrSize);
+      const textX = qrSize + padding * 2;
+      const maxTextW = labelWidth - padding;
+      let totalLines = 0;
+      labelLines.forEach((line, j) => {
+        const font = j === 0 ? `bold ${fontSize}px sans-serif` : `${Math.round(fontSize*0.9)}px sans-serif`;
+        totalLines += wrapL(line, font, maxTextW).length;
       });
-    });
+      const blockH = totalLines * lineH;
+      const blockTop = padding + Math.round((qrSize - blockH) / 2);
+      let ty = Math.max(padding, blockTop);
+      labelLines.forEach((line, j) => {
+        const font = j === 0 ? `bold ${fontSize}px sans-serif` : j === labelLines.length - 1 ? `${Math.round(fontSize*0.9)}px monospace` : `${Math.round(fontSize*0.9)}px sans-serif`;
+        ctx.fillStyle = j === 0 ? '#1a1d23' : '#5A6070';
+        wrapL(line, font, maxTextW).forEach(wl => { ctx.fillText(wl, textX, ty); ty += lineH; });
+      });
+    } else {
+      const qrOffsetX = Math.round((canvasW - qrSize) / 2);
+      ctx.drawImage(qrImage, qrOffsetX, padding, qrSize, qrSize);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const cx = Math.round(canvasW / 2);
+      const maxTW = canvasW - padding * 2;
+      let ty = qrSize + padding;
+      const wrapC = (text, font) => {
+        ctx.font = font;
+        if (ctx.measureText(text).width <= maxTW) return [text];
+        const ls = []; let cur = '';
+        for (const ch of text) {
+          if (ctx.measureText(cur + ch).width > maxTW && cur) { ls.push(cur); cur = ch; } else cur += ch;
+        }
+        if (cur) ls.push(cur);
+        return ls;
+      };
+      labelLines.forEach((line, j) => {
+        const font = j === 0 ? `bold ${fontSize}px sans-serif`
+          : j === labelLines.length - 1 ? `${Math.round(fontSize*0.9)}px monospace`
+          : `${Math.round(fontSize*0.85)}px sans-serif`;
+        ctx.fillStyle = j === 0 ? '#1a1d23' : j === labelLines.length - 1 ? '#888888' : '#5A6070';
+        wrapC(line, font).forEach(wl => { ctx.fillText(wl, cx, ty); ty += lineH; });
+      });
+    }
 
     const safeName = code.replace(/[^a-zA-Z0-9\-_]/g, '_');
     const url = c.toDataURL('image/png');

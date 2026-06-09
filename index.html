@@ -396,6 +396,38 @@
   </div>
 </div>
 
+<!-- MODAL OPTIONS TÉLÉCHARGEMENT QR -->
+<div class="modal-backdrop" id="qr-download-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">📥 Télécharger le QR code</span>
+      <button class="modal-close" onclick="UI.modal.close('qr-download-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Taille</label>
+        <select class="form-control" id="dl-qr-size">
+          <option value="55">Très petit (55px)</option>
+          <option value="80" selected>Petit (80px)</option>
+          <option value="110">Moyen (110px)</option>
+          <option value="150">Grand (150px)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Position du texte</label>
+        <select class="form-control" id="dl-qr-label-pos">
+          <option value="below">En dessous</option>
+          <option value="right">À droite</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="UI.modal.close('qr-download-modal')">Annuler</button>
+      <button class="btn btn-primary" id="dl-qr-confirm-btn">📥 Télécharger</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CONFIRMATION -->
 <div class="modal-backdrop" id="confirm-modal">
   <div class="modal modal-sm">
