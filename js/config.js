@@ -340,8 +340,14 @@ const Utils = {
   async generateQR(typeName = '') {
     const prefix = 'AC3N38';
     const typeCode = typeName ? await ItemTypes.getCode(typeName) : 'DIV';
-    const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `${prefix}-${typeCode}-${rand}`;
+    let code, exists;
+    do {
+      const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+      code = `${prefix}-${typeCode}-${rand}`;
+      const { data } = await db.from('items').select('id').eq('qr_code', code).maybeSingle();
+      exists = !!data;
+    } while (exists);
+    return code;
   },
   escapeHtml(str) {
     if (!str) return '';
