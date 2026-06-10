@@ -747,7 +747,7 @@ const Pages = {
       Array.from({length:count}, () => Utils.generateQR(typeName))
     );
     const selectedOption = typeSelect?.options[typeSelect.selectedIndex];
-    const typeLabel = typeName ? (selectedOption?.text || typeName) : '';
+    const typeLabel = typeName || '';
     container.innerHTML = '';
     Pages._renderQRGrid(container, codeList.map(c=>({code:c, label1: typeLabel, label2:''})), size, labelPos);
   },
