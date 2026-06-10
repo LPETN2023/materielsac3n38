@@ -328,14 +328,13 @@ const Pages = {
   // ENREGISTREMENT OBJET - lieu non obligatoire, type avec picker
   // ============================================================
   async renderRegisterItem(qrCode) {
-    // Génère le QR avec le type si déjà saisi, sinon générique
-    const typeVal = document.getElementById('register-type')?.value?.trim() || '';
-    document.getElementById('register-qr').value = qrCode || await Utils.generateQR(typeVal);
     document.getElementById('register-type').value = '';
     document.getElementById('register-brand').value = '';
     document.getElementById('register-model').value = '';
     document.getElementById('register-desc').value = '';
     document.getElementById('register-location').value = '';
+    // QR scanné → on le garde, sinon DIV en attendant que l'utilisateur choisisse le type
+    document.getElementById('register-qr').value = qrCode || await Utils.generateQR('');
     UI.modal.open('register-modal');
 
     // Régénère le QR quand le type change (seulement si pas de QR déjà scanné)
@@ -345,7 +344,6 @@ const Pages = {
       const onTypeChange = async () => {
         qrEl.value = await Utils.generateQR(typeEl.value.trim());
       };
-      // Retire l'ancien listener si existant
       typeEl.removeEventListener('change', typeEl._qrGenListener);
       typeEl.removeEventListener('blur', typeEl._qrGenListener);
       typeEl._qrGenListener = onTypeChange;
@@ -1243,7 +1241,10 @@ const Pages = {
 
   _selectType(targetId, name) {
     const el = document.getElementById(targetId);
-    if (el) el.value = name;
+    if (el) {
+      el.value = name;
+      el.dispatchEvent(new Event('change'));
+    }
     UI.modal.close('type-picker-modal');
   },
 
