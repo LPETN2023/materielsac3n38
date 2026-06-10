@@ -736,7 +736,7 @@ const Pages = {
   async _generateBlankQRCodes() {
     const count = Math.min(parseInt(document.getElementById('blank-count')?.value||'20'),200);
     const typeSelect = document.getElementById('blank-type');
-    const typeName = typeSelect?.options[typeSelect.selectedIndex]?.text || '';
+    const typeName = typeSelect?.value || '';
     const size = parseInt(document.getElementById('blank-size')?.value||'80');
     const labelPos = document.getElementById('blank-label-pos')?.value||'below';
     const container = document.getElementById('qr-grid-blank');
@@ -744,10 +744,12 @@ const Pages = {
     container.innerHTML = '<div style="text-align:center;padding:20px"><div class="spinner"></div></div>';
     // Génère tous les codes en parallèle
     const codeList = await Promise.all(
-      Array.from({length:count}, () => Utils.generateQR(typeName === 'Chargement...' ? '' : typeName))
+      Array.from({length:count}, () => Utils.generateQR(typeName))
     );
+    const selectedOption = typeSelect?.options[typeSelect.selectedIndex];
+    const typeLabel = typeName ? (selectedOption?.text || typeName) : '';
     container.innerHTML = '';
-    Pages._renderQRGrid(container, codeList.map(c=>({code:c,label1:'',label2:''})), size, labelPos);
+    Pages._renderQRGrid(container, codeList.map(c=>({code:c, label1: typeLabel, label2:''})), size, labelPos);
   },
 
   // Export ZIP : un PNG par QR code
