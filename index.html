@@ -143,6 +143,13 @@
           <label class="form-label">Description</label>
           <textarea id="register-desc" class="form-control" placeholder="Numéro de série, état, caractéristiques..."></textarea>
         </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="register-loanable" checked style="width:18px;height:18px;cursor:pointer;accent-color:var(--c-accent);flex-shrink:0"/>
+            <span class="form-label" style="margin:0">Matériel de prêt ?</span>
+          </label>
+          <span class="form-hint" style="margin-left:28px">Décochez si ce matériel ne doit pas être prêté</span>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="UI.modal.close('register-modal')">Annuler</button>
@@ -281,6 +288,13 @@
         <div class="form-group">
           <label class="form-label">Description</label>
           <textarea id="edit-desc" class="form-control"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="edit-loanable" checked style="width:18px;height:18px;cursor:pointer;accent-color:var(--c-accent);flex-shrink:0"/>
+            <span class="form-label" style="margin:0">Matériel de prêt ?</span>
+          </label>
+          <span class="form-hint" style="margin-left:28px">Décochez si ce matériel ne doit pas être prêté</span>
         </div>
       </div>
       <div class="modal-footer">
@@ -424,6 +438,23 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="UI.modal.close('qr-download-modal')">Annuler</button>
       <button class="btn btn-primary" id="dl-qr-confirm-btn">📥 Télécharger</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVERTISSEMENT PRÊT NON AUTORISÉ -->
+<div class="modal-backdrop" id="loan-warning-modal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <span class="modal-title">⚠️ Matériel non destiné au prêt</span>
+      <button class="modal-close" onclick="UI.modal.closeAll()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:15px;line-height:1.5;margin:0">Ce matériel ne doit normalement pas être prêté. Souhaitez-vous tout de même enregistrer un prêt ?</p>
+    </div>
+    <div class="modal-footer" style="gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" style="flex:1;min-width:100px" onclick="UI.modal.closeAll()">Non, annuler</button>
+      <button class="btn btn-danger" style="flex:1;min-width:100px" id="loan-warning-confirm">Oui, enregistrer</button>
     </div>
   </div>
 </div>

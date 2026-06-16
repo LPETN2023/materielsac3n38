@@ -333,6 +333,7 @@ const Pages = {
     document.getElementById('register-model').value = '';
     document.getElementById('register-desc').value = '';
     document.getElementById('register-location').value = '';
+    document.getElementById('register-loanable').checked = true;
     // QR scanné → on le garde, sinon DIV en attendant que l'utilisateur choisisse le type
     document.getElementById('register-qr').value = qrCode || await Utils.generateQR('');
     UI.modal.open('register-modal');
@@ -357,6 +358,8 @@ const Pages = {
   // ============================================================
   renderLoanForm(item) {
     document.getElementById('loan-item-id').value = item.id;
+    // Stocke is_loanable pour vérification au submit
+    document.getElementById('loan-item-id').dataset.loanable = item.is_loanable === false ? 'false' : 'true';
     document.getElementById('loan-item-info').innerHTML = `
       <div class="alert alert-info" style="margin-bottom:16px">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -564,6 +567,7 @@ const Pages = {
     document.getElementById('edit-desc').value = item.description || '';
     document.getElementById('edit-location').value = item.storage_location || '';
     document.getElementById('edit-status').value = item.status;
+    document.getElementById('edit-loanable').checked = item.is_loanable !== false;
     UI.modal.open('edit-modal');
   },
 
@@ -1330,7 +1334,8 @@ document.addEventListener('DOMContentLoaded', () => {
       brand:document.getElementById('register-brand').value.trim(),
       model:document.getElementById('register-model').value.trim(),
       description:document.getElementById('register-desc').value.trim(),
-      storage_location:document.getElementById('register-location').value.trim()||null
+      storage_location:document.getElementById('register-location').value.trim()||null,
+      is_loanable:document.getElementById('register-loanable').checked
     });
     UI.setLoading(btn,false);
     if (error) UI.toast(error.code==='23505'?'Ce code QR existe déjà':'Erreur : '+error.message,'error');
@@ -1341,24 +1346,42 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('loan-form')?.addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('loan-submit');
-    const itemId = document.getElementById('loan-item-id').value;
+    const itemIdEl = document.getElementById('loan-item-id');
+    const itemId = itemIdEl.value;
     const loanedTo = document.getElementById('loan-to').value.trim();
     const loanDate = document.getElementById('loan-date').value;
     if (!loanedTo||!loanDate) { UI.toast('Renseignez le destinataire et la date','warning'); return; }
-    UI.setLoading(btn,true);
-    const expectedReturn = document.getElementById('loan-expected-return').value;
-    const { error } = await Loans.create({
-      item_id:itemId, loaned_to:loanedTo, loan_date:loanDate,
-      expected_return_date: expectedReturn||null,
-      judicial_operation:document.getElementById('loan-operation').value.trim(),
-      notes:document.getElementById('loan-notes').value.trim()
-    });
-    UI.setLoading(btn,false);
-    if (error) UI.toast('Erreur : '+error.message,'error');
-    else {
-      UI.toast('Prêt enregistré !','success'); UI.modal.close('loan-modal');
-      if(App.currentPage==='inventory')Pages.renderInventory();
-      if(App.currentPage==='dashboard')Pages.renderDashboard();
+
+    const doCreateLoan = async () => {
+      UI.setLoading(btn, true);
+      const expectedReturn = document.getElementById('loan-expected-return').value;
+      const { error } = await Loans.create({
+        item_id:itemId, loaned_to:loanedTo, loan_date:loanDate,
+        expected_return_date: expectedReturn||null,
+        judicial_operation:document.getElementById('loan-operation').value.trim(),
+        notes:document.getElementById('loan-notes').value.trim()
+      });
+      UI.setLoading(btn, false);
+      if (error) UI.toast('Erreur : '+error.message,'error');
+      else {
+        UI.toast('Prêt enregistré !','success'); UI.modal.close('loan-modal');
+        if(App.currentPage==='inventory')Pages.renderInventory();
+        if(App.currentPage==='dashboard')Pages.renderDashboard();
+      }
+    };
+
+    // Si matériel non destiné au prêt, afficher l'avertissement
+    if (itemIdEl.dataset.loanable === 'false') {
+      UI.modal.open('loan-warning-modal');
+      const confirmBtn = document.getElementById('loan-warning-confirm');
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+      newConfirmBtn.addEventListener('click', async () => {
+        UI.modal.close('loan-warning-modal');
+        await doCreateLoan();
+      });
+    } else {
+      await doCreateLoan();
     }
   });
 
@@ -1394,7 +1417,8 @@ document.addEventListener('DOMContentLoaded', () => {
       model:document.getElementById('edit-model').value.trim(),
       description:document.getElementById('edit-desc').value.trim(),
       storage_location:document.getElementById('edit-location').value.trim()||null,
-      status:document.getElementById('edit-status').value
+      status:document.getElementById('edit-status').value,
+      is_loanable:document.getElementById('edit-loanable').checked
     });
     UI.setLoading(btn,false);
     if (error) UI.toast('Erreur : '+error.message,'error');
