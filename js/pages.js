@@ -358,7 +358,6 @@ const Pages = {
   // ============================================================
   renderLoanForm(item) {
     document.getElementById('loan-item-id').value = item.id;
-    // Stocke is_loanable pour vérification au submit
     document.getElementById('loan-item-id').dataset.loanable = item.is_loanable === false ? 'false' : 'true';
     document.getElementById('loan-item-info').innerHTML = `
       <div class="alert alert-info" style="margin-bottom:16px">
@@ -373,12 +372,28 @@ const Pages = {
     document.getElementById('loan-expected-return').value = '';
     document.getElementById('loan-operation').value = '';
     document.getElementById('loan-notes').value = '';
-    UI.modal.open('loan-modal');
-    const loanToEl = document.getElementById('loan-to');
-    const opEl = document.getElementById('loan-operation');
-    initAutocomplete(loanToEl, q => Autocomplete.getPersons(q));
-    initAutocomplete(opEl, q => Autocomplete.getOperations(q));
-    setTimeout(() => loanToEl.focus(), 200);
+
+    const openLoanModal = () => {
+      UI.modal.open('loan-modal');
+      const loanToEl = document.getElementById('loan-to');
+      const opEl = document.getElementById('loan-operation');
+      initAutocomplete(loanToEl, q => Autocomplete.getPersons(q));
+      initAutocomplete(opEl, q => Autocomplete.getOperations(q));
+      setTimeout(() => loanToEl.focus(), 200);
+    };
+
+    if (item.is_loanable === false) {
+      UI.modal.open('loan-warning-modal');
+      const confirmBtn = document.getElementById('loan-warning-confirm');
+      const newConfirmBtn = confirmBtn.cloneNode(true);
+      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+      newConfirmBtn.addEventListener('click', () => {
+        UI.modal.close('loan-warning-modal');
+        openLoanModal();
+      });
+    } else {
+      openLoanModal();
+    }
   },
 
   // ============================================================
@@ -1342,46 +1357,27 @@ document.addEventListener('DOMContentLoaded', () => {
     else { UI.toast('Objet enregistré !','success'); UI.modal.close('register-modal'); if(App.currentPage==='inventory')Pages.renderInventory(); }
   });
 
-  // LOAN - avec expected_return_date
   document.getElementById('loan-form')?.addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('loan-submit');
-    const itemIdEl = document.getElementById('loan-item-id');
-    const itemId = itemIdEl.value;
+    const itemId = document.getElementById('loan-item-id').value;
     const loanedTo = document.getElementById('loan-to').value.trim();
     const loanDate = document.getElementById('loan-date').value;
     if (!loanedTo||!loanDate) { UI.toast('Renseignez le destinataire et la date','warning'); return; }
-
-    const doCreateLoan = async () => {
-      UI.setLoading(btn, true);
-      const expectedReturn = document.getElementById('loan-expected-return').value;
-      const { error } = await Loans.create({
-        item_id:itemId, loaned_to:loanedTo, loan_date:loanDate,
-        expected_return_date: expectedReturn||null,
-        judicial_operation:document.getElementById('loan-operation').value.trim(),
-        notes:document.getElementById('loan-notes').value.trim()
-      });
-      UI.setLoading(btn, false);
-      if (error) UI.toast('Erreur : '+error.message,'error');
-      else {
-        UI.toast('Prêt enregistré !','success'); UI.modal.close('loan-modal');
-        if(App.currentPage==='inventory')Pages.renderInventory();
-        if(App.currentPage==='dashboard')Pages.renderDashboard();
-      }
-    };
-
-    // Si matériel non destiné au prêt, afficher l'avertissement
-    if (itemIdEl.dataset.loanable === 'false') {
-      UI.modal.open('loan-warning-modal');
-      const confirmBtn = document.getElementById('loan-warning-confirm');
-      const newConfirmBtn = confirmBtn.cloneNode(true);
-      confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-      newConfirmBtn.addEventListener('click', async () => {
-        UI.modal.close('loan-warning-modal');
-        await doCreateLoan();
-      });
-    } else {
-      await doCreateLoan();
+    UI.setLoading(btn, true);
+    const expectedReturn = document.getElementById('loan-expected-return').value;
+    const { error } = await Loans.create({
+      item_id:itemId, loaned_to:loanedTo, loan_date:loanDate,
+      expected_return_date: expectedReturn||null,
+      judicial_operation:document.getElementById('loan-operation').value.trim(),
+      notes:document.getElementById('loan-notes').value.trim()
+    });
+    UI.setLoading(btn, false);
+    if (error) UI.toast('Erreur : '+error.message,'error');
+    else {
+      UI.toast('Prêt enregistré !','success'); UI.modal.close('loan-modal');
+      if(App.currentPage==='inventory')Pages.renderInventory();
+      if(App.currentPage==='dashboard')Pages.renderDashboard();
     }
   });
 
