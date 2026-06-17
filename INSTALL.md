@@ -1,4 +1,4 @@
-# 📋 Guide d'installation — Inventaire Materiels
+# 📋 Guide d'installation — Inventaire Matériels
 
 ## 🗂 Structure des fichiers
 
@@ -7,7 +7,7 @@ inventaire-app/
 ├── index.html          ← Application principale
 ├── manifest.json       ← Config PWA (installation app)
 ├── sw.js               ← Service worker (offline)
-├── supabase_schema.sql ← Schéma base de données
+├── schema.sql          ← Schéma base de données
 ├── css/
 │   └── style.css       ← Styles
 ├── js/
@@ -30,21 +30,17 @@ inventaire-app/
 
 ### 1.2 Importer le schéma SQL
 1. Dans Supabase : **SQL Editor** → **New query**
-2. Copiez-collez tout le contenu de `supabase_schema.sql`
+2. Copiez-collez tout le contenu de `schema.sql`
 3. Cliquez **Run**
 
-### 1.3 Créer les fonctions RPC (pour l'autocomplétion)
-Dans le SQL Editor, exécutez également :
-```sql
-CREATE OR REPLACE FUNCTION increment_person_count(person_name TEXT)
-RETURNS void AS $$
-  UPDATE known_persons SET usage_count = usage_count + 1 WHERE name = person_name;
-$$ LANGUAGE sql;
-```
+> ⚠️ Le schéma inclut déjà toutes les fonctions, triggers, index et politiques de sécurité. Il n'y a rien d'autre à exécuter séparément.
 
-### 1.4 Créer le premier compte administrateur
+### 1.3 Créer le premier compte administrateur
 1. Dans Supabase : **Authentication** → **Users** → **Add user**
-2. Saisissez email + mot de passe → **Create user**
+2. Saisissez un email `@gendarmerie.interieur.gouv.fr` + mot de passe → **Create user**
+
+> ⚠️ Seuls les emails `@gendarmerie.interieur.gouv.fr` sont acceptés. Un trigger en base bloque toute inscription avec un autre domaine.
+
 3. Copiez l'**UUID** de l'utilisateur créé
 4. Dans **SQL Editor**, exécutez :
 ```sql
@@ -119,11 +115,42 @@ Dans Supabase → **Authentication** → **URL Configuration** :
 
 ---
 
+## 🔄 MISE À JOUR d'une installation existante
+
+Si vous mettez à jour une installation déjà en place plutôt que de repartir de zéro, exécutez uniquement les migrations nécessaires selon votre version :
+
+```sql
+-- Ajout du flag "matériel de prêt" (si pas encore présent)
+ALTER TABLE items ADD COLUMN IF NOT EXISTS is_loanable BOOLEAN NOT NULL DEFAULT true;
+
+-- Ajout du code diminutif sur les types de matériel (si pas encore présent)
+ALTER TABLE item_types ADD COLUMN IF NOT EXISTS code VARCHAR(8);
+UPDATE item_types SET code = 'PC'    WHERE name ILIKE '%ordinateur%';
+UPDATE item_types SET code = 'PHONE' WHERE name ILIKE '%téléphone%' OR name ILIKE '%telephone%' OR name ILIKE '%smartphone%';
+UPDATE item_types SET code = 'TAB'   WHERE name ILIKE '%tablette%';
+UPDATE item_types SET code = 'CAM'   WHERE name ILIKE '%photo%' OR name ILIKE '%caméra%' OR name ILIKE '%camera%';
+UPDATE item_types SET code = 'HDD'   WHERE name ILIKE '%disque dur%';
+UPDATE item_types SET code = 'SSD'   WHERE name ILIKE '%ssd%';
+UPDATE item_types SET code = 'USB'   WHERE name ILIKE '%usb%';
+UPDATE item_types SET code = 'GPS'   WHERE name ILIKE '%gps%';
+UPDATE item_types SET code = 'AUDIO' WHERE name ILIKE '%audio%' OR name ILIKE '%enregistreur%';
+UPDATE item_types SET code = 'PRINT' WHERE name ILIKE '%imprimante%';
+UPDATE item_types SET code = 'SCAN'  WHERE name ILIKE '%scanner%';
+UPDATE item_types SET code = 'DRONE' WHERE name ILIKE '%drone%';
+UPDATE item_types SET code = 'RADIO' WHERE name ILIKE '%radio%';
+UPDATE item_types SET code = 'DIV'   WHERE name ILIKE '%autre%';
+UPDATE item_types SET code = UPPER(LEFT(REGEXP_REPLACE(name, '[^a-zA-Z]', '', 'g'), 4))
+WHERE code IS NULL OR code = '';
+```
+
+---
+
 ## 🔒 Sécurité
 
 - **Authentification** : via Supabase Auth (email + mot de passe)
+- **Domaine email restreint** : seuls les comptes `@gendarmerie.interieur.gouv.fr` sont acceptés, contrôlé à la fois côté application et par un trigger en base de données
 - **Row Level Security** : chaque table est protégée, les utilisateurs ne voient que ce qu'ils ont le droit de voir
-- **Logs d'audit** : toutes les actions sont enregistrées avec l'utilisateur et la date
+- **Logs d'audit** : toutes les actions sont enregistrées avec l'utilisateur et la date ; à la suppression d'un compte, les logs sont conservés mais anonymisés automatiquement
 - **HTTPS** : obligatoire via GitHub Pages (certificat auto)
 - Pas de page d'inscription publique : **seul l'admin peut créer des comptes**
 
@@ -134,13 +161,14 @@ Dans Supabase → **Authentication** → **URL Configuration** :
 | Fonctionnalité | Description |
 |---|---|
 | 📷 Scanner QR | Caméra en temps réel + saisie manuelle |
-| 📦 Enregistrement | Objet inconnu → formulaire de création |
-| 🔄 Prêt | Objet libre → prêt avec autocomplétion |
-| ✅ Restitution | Objet prêté → restitution avec rappel du lieu |
-| 🏷 Génération QR | Page A4 imprimable, label haut/bas |
-| 👤 Comptes | Création par admin uniquement |
-| 📋 Logs | Journal complet des actions |
-| 📱 PWA | Installable comme app native |
+| 📦 Enregistrement | Objet inconnu → formulaire de création avec génération automatique du code QR selon le type |
+| 🔄 Prêt | Objet libre → prêt avec autocomplétion des noms et opérations |
+| ⚠️ Matériel non prêtable | Avertissement si le matériel est marqué comme non destiné au prêt |
+| ✅ Restitution | Objet prêté → restitution avec notes de retour |
+| 🏷 Génération QR | Codes imprimables par type, taille et position du label configurables |
+| 👤 Comptes | Création par admin uniquement, domaine email restreint |
+| 📋 Logs | Journal complet des actions (admin uniquement) |
+| 📱 PWA | Installable comme app native sur mobile et desktop |
 
 ---
 
@@ -153,14 +181,14 @@ Dans Supabase → **Authentication** → **URL Configuration** :
 → Vérifiez que `SUPABASE_URL` et `SUPABASE_ANON_KEY` sont corrects dans `config.js`.
 
 **La création de compte ne fonctionne pas**
-→ La création d'utilisateurs via `auth.admin` nécessite une **Service Role Key** côté serveur. Alternative : créez les comptes directement dans le dashboard Supabase > Authentication > Users, puis insérez manuellement le profil.
-
-**Alternative pour la création de comptes** :
+→ Vérifiez que l'email utilisé est bien en `@gendarmerie.interieur.gouv.fr`. Si l'erreur persiste, créez le compte directement dans Supabase > Authentication > Users, puis insérez manuellement le profil :
 ```sql
--- Dans Supabase SQL Editor, après avoir créé l'utilisateur dans Auth :
 INSERT INTO profiles (id, username, full_name, role)
 VALUES ('UUID_DU_NOUVEL_UTILISATEUR', 'username', 'Nom Prénom', 'user');
 ```
+
+**Le code QR généré contient "DIV" au lieu du type**
+→ Vérifiez que le type de matériel saisi correspond exactement à un type existant dans la table `item_types` (sensible aux accents). Vous pouvez vérifier via Supabase > Table Editor > item_types.
 
 ---
 
