@@ -1595,6 +1595,13 @@ html, body {
   }
 }
 
+/* Espace sous le contenu pour ne pas être caché par le FAB */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 90px;
+  }
+}
+
 /* Boutons QR codes header - responsive */
 .qr-header-btns {
   display: flex;
