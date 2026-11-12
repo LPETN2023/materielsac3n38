@@ -9,7 +9,8 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
 });
-// Client secondaire sans persistance (création de comptes sans écraser la session admin)
+// Client secondaire sans persistance : sert uniquement à vérifier le mot de passe
+// actuel (Paramètres) sans toucher à la session en cours.
 const dbSignup = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
 });
@@ -23,10 +24,11 @@ const Auth = {
   _refreshTimer: null,
 
   async init() {
-    const { data: { session } } = await db.auth.getSession();
+    let { data: { session } } = await db.auth.getSession();
     if (session?.user) {
-      await this.loadProfile(session.user);
-      this._scheduleRefresh(session);
+      const ok = await this.loadProfile(session.user);
+      if (ok) this._scheduleRefresh(session);
+      else session = null;
     }
 
     db.auth.onAuthStateChange(async (event, session) => {
@@ -67,14 +69,20 @@ const Auth = {
     if (ms > 0) this._refreshTimer = setTimeout(() => db.auth.refreshSession(), ms);
   },
 
+  // Renvoie false (et déconnecte) si le profil est absent ou désactivé.
   async loadProfile(user) {
     this.currentUser = user;
-    const { data } = await db.from('profiles').select('*').eq('id', user.id).single();
+    const { data } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
     this.currentProfile = data;
-    if (data) {
-      if (!data.is_active) { await this.logout(); UI.toast('Votre compte est désactivé.', 'error'); return false; }
-      UI.updateUserDisplay(data);
+    if (!data || !data.is_active) {
+      this.currentUser = null;
+      this.currentProfile = null;
+      clearTimeout(this._refreshTimer);
+      await db.auth.signOut();
+      UI.toast(data ? 'Votre compte est désactivé.' : 'Compte inconnu : contactez un administrateur.', 'error');
+      return false;
     }
+    UI.updateUserDisplay(data);
     return true;
   },
 
@@ -100,13 +108,14 @@ const Auth = {
 
 // ============================================================
 // LOGS
+// La base journalise elle-même objets, prêts, types et comptes.
+// Le navigateur n'écrit que LOGIN, LOGOUT et PASSWORD_CHANGE
+// (l'auteur et la date sont imposés par la base).
 // ============================================================
 const Logs = {
   async write(action, entityType, entityId, details = {}) {
     try {
       await db.from('audit_logs').insert({
-        user_id: Auth.currentUser?.id || null,
-        username: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu',
         action, entity_type: entityType,
         entity_id: entityId?.toString() || null, details
       });
@@ -119,86 +128,64 @@ const Logs = {
 // ============================================================
 const Items = {
   async getByQR(qrCode) {
-    return await db.from('items').select('*').eq('qr_code', qrCode).single();
+    return await db.from('items').select('*').eq('qr_code', qrCode).maybeSingle();
   },
 
   async getAll(filters = {}) {
     let query = db.from('items').select('*').order('created_at', { ascending: false });
     if (filters.status) query = query.eq('status', filters.status);
-    if (filters.search) query = query.or(
-      `qr_code.ilike.%${filters.search}%,type.ilike.%${filters.search}%,brand.ilike.%${filters.search}%,model.ilike.%${filters.search}%,storage_location.ilike.%${filters.search}%`
+    const s = Utils.cleanSearch(filters.search);
+    if (s) query = query.or(
+      `qr_code.ilike.%${s}%,type.ilike.%${s}%,brand.ilike.%${s}%,model.ilike.%${s}%,storage_location.ilike.%${s}%`
     );
     return await query;
   },
 
+  // created_by / created_by_name sont imposés par la base
   async create(itemData) {
-    const { data, error } = await db.from('items').insert({
-      ...itemData,
-      created_by: Auth.currentUser.id,
-      created_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
-    }).select().single();
-    if (!error) await Logs.write('ITEM_CREATE', 'item', data.id, { qr_code: data.qr_code, type: data.type });
-    return { data, error };
+    return await db.from('items').insert(itemData).select().single();
   },
 
   async update(id, updates) {
-    const { data, error } = await db.from('items').update(updates).eq('id', id).select().single();
-    if (!error) await Logs.write('ITEM_UPDATE', 'item', id, updates);
-    return { data, error };
+    return await db.from('items').update(updates).eq('id', id).select().single();
   },
 
   async delete(id) {
-    const { error } = await db.from('items').delete().eq('id', id);
-    if (!error) await Logs.write('ITEM_DELETE', 'item', id, {});
-    return { error };
+    return await db.from('items').delete().eq('id', id);
   }
 };
 
 // ============================================================
-// LOANS
+// LOANS : prêt et retour passent par des fonctions de la base
+// (vérification + verrouillage : un objet ne peut pas être prêté deux fois)
 // ============================================================
 const Loans = {
   async getActiveForItem(itemId) {
-    const { data, error } = await db.from('loans').select('*')
+    return await db.from('loans').select('*')
       .eq('item_id', itemId).is('returned_at', null)
-      .order('created_at', { ascending: false }).limit(1).single();
-    return { data, error };
+      .order('created_at', { ascending: false }).limit(1).maybeSingle();
   },
 
   async create(loanData) {
-    const { data, error } = await db.from('loans').insert({
-      ...loanData,
-      created_by: Auth.currentUser.id,
-      created_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
-    }).select().single();
-
-    if (!error) {
-      await db.from('items').update({ status: 'loaned' }).eq('id', loanData.item_id);
-      await Logs.write('LOAN_CREATE', 'loan', data.id, { item_id: loanData.item_id, loaned_to: loanData.loaned_to });
-      await Autocomplete.savePerson(loanData.loaned_to);
-      if (loanData.judicial_operation) await Autocomplete.saveOperation(loanData.judicial_operation);
-    }
-    return { data, error };
+    return await db.rpc('preter_objet', {
+      p_item_id: loanData.item_id,
+      p_loaned_to: loanData.loaned_to,
+      p_loan_date: loanData.loan_date || null,
+      p_expected_return: loanData.expected_return_date || null,
+      p_operation: loanData.operation || null,
+      p_notes: loanData.notes || null
+    });
   },
 
+  // itemId conservé pour compatibilité des appels ; la base retrouve l'objet
   async return(loanId, itemId, { return_notes }) {
-    const { data, error } = await db.from('loans').update({
-      returned_at: new Date().toISOString(),
-      return_notes,
-      returned_by: Auth.currentUser.id,
-      returned_by_name: Auth.currentProfile?.full_name || Auth.currentUser?.email || 'Inconnu'
-    }).eq('id', loanId).select().single();
-
-    if (!error) {
-      await db.from('items').update({ status: 'available' }).eq('id', itemId);
-      await Logs.write('LOAN_RETURN', 'loan', loanId, { item_id: itemId });
-    }
-    return { data, error };
+    if (!loanId) return { data: null, error: { message: 'Prêt introuvable' } };
+    return await db.rpc('rendre_objet', { p_loan_id: loanId, p_return_notes: return_notes || null });
   },
 
   async getActiveFull(limit = 50) {
     return await db.from('loans')
-      .select(`id, loaned_to, loan_date, expected_return_date, judicial_operation, notes, created_at,
+      .select(`id, loaned_to, loan_date, expected_return_date, operation, notes, created_at,
                items ( id, qr_code, type, brand, model, storage_location )`)
       .is('returned_at', null)
       .order('loan_date', { ascending: true })
@@ -207,33 +194,18 @@ const Loans = {
 };
 
 // ============================================================
-// AUTOCOMPLETE
+// AUTOCOMPLETE (alimentée automatiquement par preter_objet)
 // ============================================================
 const Autocomplete = {
-  async getPersons(query = '') {
-    let q = db.from('known_persons').select('name').order('usage_count', { ascending: false }).limit(20);
-    if (query) q = q.ilike('name', `%${query}%`);
+  async _list(table, query) {
+    let q = db.from(table).select('name').order('usage_count', { ascending: false }).limit(20);
+    const s = Utils.cleanSearch(query);
+    if (s) q = q.ilike('name', `%${s}%`);
     const { data } = await q;
     return data?.map(d => d.name) || [];
   },
-  async getOperations(query = '') {
-    let q = db.from('judicial_operations').select('name').order('usage_count', { ascending: false }).limit(20);
-    if (query) q = q.ilike('name', `%${query}%`);
-    const { data } = await q;
-    return data?.map(d => d.name) || [];
-  },
-  async savePerson(name) {
-    if (!name) return;
-    const { data: ex } = await db.from('known_persons').select('id,usage_count').eq('name', name).single();
-    if (ex) await db.from('known_persons').update({ usage_count: ex.usage_count + 1 }).eq('name', name);
-    else await db.from('known_persons').insert({ name, usage_count: 1 });
-  },
-  async saveOperation(name) {
-    if (!name) return;
-    const { data: ex } = await db.from('judicial_operations').select('id,usage_count').eq('name', name).single();
-    if (ex) await db.from('judicial_operations').update({ usage_count: ex.usage_count + 1 }).eq('name', name);
-    else await db.from('judicial_operations').insert({ name, usage_count: 1 });
-  }
+  getPersons(query = '') { return this._list('known_persons', query); },
+  getOperations(query = '') { return this._list('operations', query); }
 };
 
 // ============================================================
@@ -245,35 +217,31 @@ const ItemTypes = {
     return data || [];
   },
 
+  _cleanCode(code) {
+    return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
+  },
+
   async add(name, code) {
-    const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
-    const { data, error } = await db.from('item_types')
-      .insert({ name: name.trim(), code: cleanCode }).select().single();
-    if (!error) await Logs.write('ITEMTYPE_CREATE', 'item_type', data.id, { name, code: cleanCode });
-    return { data, error };
+    return await db.from('item_types')
+      .insert({ name: name.trim(), code: this._cleanCode(code) }).select().single();
   },
 
   async update(id, name, code) {
-    const cleanCode = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
-    const { data, error } = await db.from('item_types')
-      .update({ name: name.trim(), code: cleanCode }).eq('id', id).select().single();
-    if (!error) await Logs.write('ITEMTYPE_UPDATE', 'item_type', id, { name, code: cleanCode });
-    return { data, error };
+    return await db.from('item_types')
+      .update({ name: name.trim(), code: this._cleanCode(code) }).eq('id', id).select().single();
   },
 
   async delete(id) {
-    const { error } = await db.from('item_types').delete().eq('id', id);
-    if (!error) await Logs.write('ITEMTYPE_DELETE', 'item_type', id, {});
-    return { error };
+    return await db.from('item_types').delete().eq('id', id);
   },
 
   // Récupère le code diminutif depuis la BDD
   async getCode(typeName) {
     if (!typeName) return 'DIV';
     const { data } = await db.from('item_types')
-      .select('code').ilike('name', typeName.trim()).single();
+      .select('code').eq('name', typeName.trim()).maybeSingle();
     if (data?.code) return data.code;
-    // Fallback : 4 premières lettres
+    // Repli : 4 premières lettres
     const clean = typeName.replace(/[^a-zA-Z]/g, '').toUpperCase();
     return clean.substring(0, 4) || 'DIV';
   }
@@ -281,6 +249,8 @@ const ItemTypes = {
 
 // ============================================================
 // USERS
+// La création passe par l'Edge Function « creer-compte » (vérifie que
+// l'appelant est admin, le domaine email, crée compte + profil).
 // ============================================================
 const Users = {
   async getAll() { return await db.from('profiles').select('*').order('created_at'); },
@@ -289,35 +259,23 @@ const Users = {
     if (!email.toLowerCase().endsWith('@gendarmerie.interieur.gouv.fr')) {
       throw new Error('Seuls les emails @gendarmerie.interieur.gouv.fr sont autorisés');
     }
-    const { data, error: signUpError } = await dbSignup.auth.signUp({
-      email, password, options: { data: { full_name: fullName } }
+    const { data, error } = await db.functions.invoke('creer-compte', {
+      body: { email, password, full_name: fullName, role }
     });
-    if (signUpError) throw signUpError;
-    if (!data.user) throw new Error('Erreur lors de la création du compte');
-
-    const { error: profileError } = await db.from('profiles').insert({
-      id: data.user.id,
-      username: email.split('@')[0].toLowerCase(),
-      full_name: fullName,
-      role,
-      is_active: true
-    });
-    if (profileError) throw new Error('Compte créé mais profil non enregistré : ' + profileError.message);
-
-    await Logs.write('USER_CREATE', 'user', data.user.id, { email, role });
-    return data.user;
+    if (error) {
+      let msg = error.message;
+      try { const body = await error.context.json(); if (body?.error) msg = body.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    return data;
   },
 
   async toggle(userId, isActive) {
-    const { error } = await db.from('profiles').update({ is_active: isActive }).eq('id', userId);
-    await Logs.write(isActive ? 'USER_ACTIVATE' : 'USER_DEACTIVATE', 'user', userId, {});
-    return { error };
+    return await db.from('profiles').update({ is_active: isActive }).eq('id', userId);
   },
 
   async setRole(userId, role) {
-    const { error } = await db.from('profiles').update({ role }).eq('id', userId);
-    await Logs.write('USER_ROLE_CHANGE', 'user', userId, { role });
-    return { error };
+    return await db.from('profiles').update({ role }).eq('id', userId);
   }
 };
 
@@ -327,7 +285,9 @@ const Users = {
 const Utils = {
   formatDate(date) {
     if (!date) return '-';
-    return new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Une date seule (AAAA-MM-JJ) est lue comme date locale, pas UTC
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(date + 'T00:00:00') : new Date(date);
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   },
   formatDateTime(date) {
     if (!date) return '-';
@@ -335,31 +295,47 @@ const Utils = {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
   },
-  todayISO() { return new Date().toISOString().split('T')[0]; },
+  // Date du jour en heure locale (et non UTC : évite « hier » entre minuit et 2 h)
+  todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  },
   // Génère un code QR avec le diminutif du type depuis la BDD
   async generateQR(typeName = '') {
     const prefix = 'AC3N38';
     const typeCode = typeName ? await ItemTypes.getCode(typeName) : 'DIV';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code, exists;
     do {
-      const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const rnd = crypto.getRandomValues(new Uint32Array(6));
+      const rand = Array.from(rnd, n => chars[n % chars.length]).join('');
       code = `${prefix}-${typeCode}-${rand}`;
       const { data } = await db.from('items').select('id').eq('qr_code', code).maybeSingle();
       exists = !!data;
     } while (exists);
     return code;
   },
+  // Texte à insérer dans du HTML
   escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  },
+  // Argument de fonction dans un attribut onclick="..." : chaîne JS sûre, puis échappée pour HTML
+  jsArg(str) {
+    return Utils.escapeHtml(JSON.stringify(str === null || str === undefined ? '' : String(str)));
+  },
+  // Retire les caractères qui ont un sens dans les filtres de recherche Supabase
+  cleanSearch(str) {
+    return String(str || '').replace(/[,()"'\\%*]/g, ' ').trim().substring(0, 100);
   },
   isOverdue(dateStr) {
     if (!dateStr) return false;
-    return new Date(dateStr) < new Date(new Date().toDateString());
+    return new Date(dateStr + 'T00:00:00') < new Date(new Date().toDateString());
   },
   daysOverdue(dateStr) {
     if (!dateStr) return 0;
-    const diff = new Date(new Date().toDateString()) - new Date(dateStr);
+    const diff = new Date(new Date().toDateString()) - new Date(dateStr + 'T00:00:00');
     return Math.floor(diff / 86400000);
   }
 };

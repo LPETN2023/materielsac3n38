@@ -223,7 +223,7 @@ const Pages = {
               <div class="text-xs text-muted font-mono">${Utils.escapeHtml(item?.qr_code || '')}</div>
             </td>
             <td>${Utils.escapeHtml(loan.loaned_to)}</td>
-            <td class="text-sm">${Utils.escapeHtml(loan.judicial_operation || '—')}</td>
+            <td class="text-sm">${Utils.escapeHtml(loan.operation || '—')}</td>
             <td class="text-sm" style="white-space:nowrap">${Utils.formatDate(loan.loan_date)}</td>
             <td style="white-space:nowrap">
               ${loan.expected_return_date
@@ -231,7 +231,7 @@ const Pages = {
                 : '<span class="text-muted text-xs">—</span>'}
             </td>
             <td>
-              <button class="btn btn-success btn-sm" onclick="Pages._quickReturn('${loan.id}','${item?.id}','${Utils.escapeHtml(item?.storage_location||'Non précisé')}')">✅</button>
+              <button class="btn btn-success btn-sm" onclick="Pages._quickReturn('${loan.id}','${item?.id}',${Utils.jsArg(item?.storage_location||'Non précisé')})">✅</button>
             </td>
           </tr>`;
         }).join('')}</tbody></table></div>`;
@@ -299,7 +299,7 @@ const Pages = {
           <th class="hide-mobile">Stockage</th><th>Statut</th><th>Actions</th>
         </tr></thead>
         <tbody>${data.map(item => `<tr>
-          <td><button class="qr-code-link font-mono" onclick="App.handleQRCode('${Utils.escapeHtml(item.qr_code)}')" title="Gérer cet objet">${Utils.escapeHtml(item.qr_code)}</button></td>
+          <td><button class="qr-code-link font-mono" onclick="App.handleQRCode(${Utils.jsArg(item.qr_code)})" title="Gérer cet objet">${Utils.escapeHtml(item.qr_code)}</button></td>
           <td class="text-sm">${Utils.escapeHtml(item.type)}</td>
           <td>
             <div style="font-weight:500">${Utils.escapeHtml(item.brand||'—')}</div>
@@ -310,7 +310,7 @@ const Pages = {
           <td>
             <div class="btn-group">
               <button class="btn btn-ghost btn-sm" onclick="Pages.openEditItem('${item.id}')">✏️</button>
-              <button class="btn btn-ghost btn-sm" onclick="Pages.openQRDownloadModal('${Utils.escapeHtml(item.qr_code)}','${Utils.escapeHtml(item.type)}','${Utils.escapeHtml(item.brand||'')}','${Utils.escapeHtml(item.model||'')}')" title="Télécharger le QR code">📥</button>
+              <button class="btn btn-ghost btn-sm" onclick="Pages.openQRDownloadModal(${Utils.jsArg(item.qr_code)},${Utils.jsArg(item.type)},${Utils.jsArg(item.brand||'')},${Utils.jsArg(item.model||'')})" title="Télécharger le QR code">📥</button>
               ${Auth.isAdmin()?`<button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages.deleteItem('${item.id}')">🗑</button>`:''}
             </div>
           </td>
@@ -411,7 +411,7 @@ const Pages = {
         <div>
           <strong>${Utils.escapeHtml(item.type)}${item.brand?' — '+Utils.escapeHtml(item.brand):''}</strong><br>
           <span class="text-xs">Prêté à : <strong>${Utils.escapeHtml(loan?.loaned_to||'?')}</strong></span><br>
-          ${loan?.judicial_operation?`<span class="text-xs">Opération : ${Utils.escapeHtml(loan.judicial_operation)}</span><br>`:''}
+          ${loan?.operation?`<span class="text-xs">Opération : ${Utils.escapeHtml(loan.operation)}</span><br>`:''}
           ${loan?.loan_date?`<span class="text-xs">Depuis le : ${Utils.formatDate(loan.loan_date)}</span><br>`:''}
           ${loan?.expected_return_date?`<span class="text-xs ${od?'overdue-label':''}">Restitution prévue : ${Utils.formatDate(loan.expected_return_date)}${od?` (+${Utils.daysOverdue(loan.expected_return_date)} j de retard)`:''}</span><br>`:''}
           <span class="text-xs" style="font-weight:600;color:var(--c-accent)">📍 Remettre à : ${Utils.escapeHtml(item.storage_location||'Non précisé')}</span>
@@ -582,6 +582,7 @@ const Pages = {
     document.getElementById('edit-desc').value = item.description || '';
     document.getElementById('edit-location').value = item.storage_location || '';
     document.getElementById('edit-status').value = item.status;
+    document.getElementById('edit-status').disabled = true; // statut géré par prêt / retour
     document.getElementById('edit-loanable').checked = item.is_loanable !== false;
     UI.modal.open('edit-modal');
   },
@@ -1059,7 +1060,7 @@ const Pages = {
       <tbody>${data.map(user=>`<tr>
         <td>
           <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--c-accent-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--c-accent);flex-shrink:0">${user.full_name.charAt(0).toUpperCase()}</div>
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--c-accent-light);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--c-accent);flex-shrink:0">${Utils.escapeHtml((user.full_name||'?').charAt(0).toUpperCase())}</div>
             <div>
               <div style="font-weight:500">${Utils.escapeHtml(user.full_name)}</div>
             </div>
@@ -1078,13 +1079,13 @@ const Pages = {
 
   async _toggleUser(userId, activate) {
     const { error } = await Users.toggle(userId, activate);
-    if (error) UI.toast('Erreur','error'); else { UI.toast(activate?'Compte activé':'Compte désactivé','success'); Pages._loadUsers(); }
+    if (error) UI.toast('Erreur : '+error.message,'error'); else { UI.toast(activate?'Compte activé':'Compte désactivé','success'); Pages._loadUsers(); }
   },
 
   async _changeRole(userId, newRole) {
     if (!await UI.confirm(`Changer vers "${newRole==='admin'?'Admin':'Utilisateur'}" ?`)) return;
     const { error } = await Users.setRole(userId, newRole);
-    if (error) UI.toast('Erreur','error'); else { UI.toast('Rôle modifié','success'); Pages._loadUsers(); }
+    if (error) UI.toast('Erreur : '+error.message,'error'); else { UI.toast('Rôle modifié','success'); Pages._loadUsers(); }
   },
 
 
@@ -1227,8 +1228,8 @@ const Pages = {
         <td><span class="font-mono badge badge-info">${Utils.escapeHtml(t.code||'—')}</span></td>
         <td>
           <div class="btn-group">
-            <button class="btn btn-ghost btn-sm" onclick="Pages._editType('${t.id}','${Utils.escapeHtml(t.name)}','${Utils.escapeHtml(t.code||'')}')">✏️ Modifier</button>
-            <button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}','${Utils.escapeHtml(t.name)}')">🗑</button>
+            <button class="btn btn-ghost btn-sm" onclick="Pages._editType('${t.id}',${Utils.jsArg(t.name)},${Utils.jsArg(t.code||'')})">✏️ Modifier</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--c-danger)" onclick="Pages._deleteType('${t.id}',${Utils.jsArg(t.name)})">🗑</button>
           </div>
         </td>
       </tr>`).join('')}</tbody></table></div>`;
@@ -1252,7 +1253,7 @@ const Pages = {
     const types = await ItemTypes.getAll();
     const list = document.getElementById('type-picker-list');
     list.innerHTML = types.map(t=>`
-      <div class="type-picker-item" onclick="Pages._selectType('${targetId}','${Utils.escapeHtml(t.name)}')">
+      <div class="type-picker-item" onclick="Pages._selectType('${targetId}',${Utils.jsArg(t.name)})">
         ${Utils.escapeHtml(t.name)}
       </div>`).join('');
     UI.modal.open('type-picker-modal');
@@ -1293,6 +1294,10 @@ const Pages = {
             <option value="LOAN_CREATE">Prêt</option>
             <option value="LOAN_RETURN">Restitution</option>
             <option value="USER_CREATE">Création compte</option>
+            <option value="USER_ROLE_CHANGE">Changement de rôle</option>
+            <option value="USER_DEACTIVATE">Désactivation compte</option>
+            <option value="ITEMTYPE_CREATE">Type ajouté</option>
+            <option value="PASSWORD_CHANGE">Mot de passe</option>
           </select>
         </div>
         <div id="logs-table"><div style="text-align:center;padding:30px"><div class="spinner"></div></div></div>
@@ -1304,21 +1309,22 @@ const Pages = {
       const action = document.getElementById('log-action')?.value||'';
       let query = db.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(200);
       if (action) query = query.eq('action',action);
-      if (search) query = query.or(`username.ilike.%${search}%,action.ilike.%${search}%`);
+      const s = Utils.cleanSearch(search);
+      if (s) query = query.or(`username.ilike.%${s}%,action.ilike.%${s}%`);
       const { data, error } = await query;
       const el = document.getElementById('logs-table');
       if (!el) return;
       if (error) { el.innerHTML='<div class="alert alert-danger">Erreur</div>'; return; }
       if (!data?.length) { el.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><p class="empty-state-text">Aucun log</p></div>'; return; }
-      const labels={LOGIN:'🔓 Connexion',LOGOUT:'🔒 Déconnexion',ITEM_CREATE:'📦 Création',ITEM_UPDATE:'✏️ Modification',ITEM_DELETE:'🗑️ Suppression',LOAN_CREATE:'🔄 Prêt',LOAN_RETURN:'✅ Restitution',USER_CREATE:'👤 Création compte',USER_ACTIVATE:'🔓 Activation',USER_DEACTIVATE:'🔒 Désactivation',USER_ROLE_CHANGE:'⚙️ Rôle'};
+      const labels={LOGIN:'🔓 Connexion',LOGOUT:'🔒 Déconnexion',ITEM_CREATE:'📦 Création',ITEM_UPDATE:'✏️ Modification',ITEM_DELETE:'🗑️ Suppression',LOAN_CREATE:'🔄 Prêt',LOAN_RETURN:'✅ Restitution',USER_CREATE:'👤 Création compte',USER_ACTIVATE:'🔓 Activation',USER_DEACTIVATE:'🔒 Désactivation',USER_ROLE_CHANGE:'⚙️ Rôle',ITEMTYPE_CREATE:'📋 Type ajouté',ITEMTYPE_UPDATE:'📋 Type modifié',ITEMTYPE_DELETE:'📋 Type supprimé',PASSWORD_CHANGE:'🔑 Mot de passe',PASSWORD_RESET:'🔑 Mot de passe réinitialisé'};
       el.innerHTML=`<div class="table-wrapper"><table>
         <thead><tr><th>Date/Heure</th><th>Utilisateur</th><th>Action</th><th>Détails</th></tr></thead>
         <tbody>${data.map(log=>{
-          const details=log.details?Object.entries(log.details).filter(([k])=>!['password'].includes(k)).map(([k,v])=>`${k}: ${v}`).join(', '):'';
+          const details=log.details?Object.entries(log.details).filter(([k])=>!['password'].includes(k)).map(([k,v])=>`${k}: ${v!==null&&typeof v==='object'?JSON.stringify(v):v}`).join(', '):'';
           return`<tr>
             <td class="text-xs font-mono" style="white-space:nowrap">${Utils.formatDateTime(log.created_at)}</td>
             <td style="font-weight:500">${Utils.escapeHtml(log.username||'—')}</td>
-            <td class="text-sm">${labels[log.action]||'📝 '+log.action}</td>
+            <td class="text-sm">${labels[log.action]||'📝 '+Utils.escapeHtml(log.action)}</td>
             <td class="text-xs text-muted">${Utils.escapeHtml(details)}</td>
           </tr>`;
         }).join('')}</tbody></table></div>`;
@@ -1369,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await Loans.create({
       item_id:itemId, loaned_to:loanedTo, loan_date:loanDate,
       expected_return_date: expectedReturn||null,
-      judicial_operation:document.getElementById('loan-operation').value.trim(),
+      operation:document.getElementById('loan-operation').value.trim(),
       notes:document.getElementById('loan-notes').value.trim()
     });
     UI.setLoading(btn, false);
@@ -1413,7 +1419,6 @@ document.addEventListener('DOMContentLoaded', () => {
       model:document.getElementById('edit-model').value.trim(),
       description:document.getElementById('edit-desc').value.trim(),
       storage_location:document.getElementById('edit-location').value.trim()||null,
-      status:document.getElementById('edit-status').value,
       is_loanable:document.getElementById('edit-loanable').checked
     });
     UI.setLoading(btn,false);
@@ -1436,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await Users.create(email,pass,name,role);
       UI.toast('Compte créé !','success'); UI.modal.close('add-user-modal'); Pages._loadUsers();
     } catch(err) {
-      const msg = err.message?.includes('autorisés') ? err.message : err.message?.includes('already') ? 'Cet email est déjà utilisé' : 'Erreur : ' + err.message;
+      const msg = err.message || 'Erreur lors de la création du compte';
       UI.toast(msg,'error');
     }
     UI.setLoading(btn,false);
