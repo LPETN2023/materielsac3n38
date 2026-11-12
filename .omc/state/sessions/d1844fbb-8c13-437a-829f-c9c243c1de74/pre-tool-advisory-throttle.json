@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "entries": {
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1794479073806,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "736ae84bd49ff45ff8970aad5cb272a0451d45fa8ddd5ff7fb3a8633c8aa3a26": {
+      "last_emitted_at_ms": 1794479058549,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Vérificateur v4 CDN"
+    },
+    "ebd9c7847ea1376924bf159e131e11aedaaef9fd79246878785dba3f08c1fb9c": {
+      "last_emitted_at_ms": 1794479056408,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Vérificateur v3 e-mail"
+    },
+    "d454cd2e1fbaa310c35eedda39d5df4e839ac3eba42b1d1dd3d96fbd56d29246": {
+      "last_emitted_at_ms": 1794479054445,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Vérificateur v2 mot de passe"
+    },
+    "5b7550fc1834625b8b2c4e539edcb3b1f11d567587f77ea3352bec744efe2ff7": {
+      "last_emitted_at_ms": 1794479052491,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Vérificateur v1 items"
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1794479020785,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "9cee4e652e00c6dc98b07b7bb30bd77e682ea8285e582ce9432b68d0728fc97e": {
+      "last_emitted_at_ms": 1794478978465,
+      "message": "Spawning agent: explorateur-code (inherit) | Task: Critique de couverture finale"
+    },
+    "459c54e5f35d6a58dcd90d2aecc21fa6d1f35d241bc5b134c506f87dc7b6d67b": {
+      "last_emitted_at_ms": 1794478863873,
+      "message": "Combine searches in parallel when investigating multiple patterns."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1794478807988,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "8f9eaf2ce347153aaa8c1858bf96c7af25abd36969b26133a148ff34c5ce655e": {
+      "last_emitted_at_ms": 1794478805940,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Hunter h5 SW et CDN"
+    },
+    "cdb8eb1a67236e40090a08016a1c3ace5c74a384d5803028a9da79a86edd7e2c": {
+      "last_emitted_at_ms": 1794478803124,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Hunter h4 Edge Function"
+    },
+    "076905eb17ff186c82d11d12e7d38a79bd6e1c1789f22afe41753068bf952f1d": {
+      "last_emitted_at_ms": 1794478801178,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Hunter h3 sessions"
+    },
+    "b2d1a1a7d1c232f0314b32d06cdb860052c3b66bfd238bf6fd63b526cf99f415": {
+      "last_emitted_at_ms": 1794478799213,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Hunter h2 rendu DOM"
+    },
+    "1700b9257339230051a5c0e58f5ba550c5f9c24e0275251dcfff3d950b8b8f0e": {
+      "last_emitted_at_ms": 1794478797215,
+      "message": "Spawning agent: general-purpose (inherit) | Task: Hunter h1 base de données"
+    },
+    "885af3ba1d4b15f2d416aee6659b324a624804d0fba4d558cbb05f70c7533b4d": {
+      "last_emitted_at_ms": 1794478549557,
+      "message": "Spawning agent: explorateur-code (inherit) | Task: Recon 1d exécution et déploiement"
+    },
+    "70c125cdb31a6691b4d5f72a93eefed6fe2050c9775e5de480e26b232f20999b": {
+      "last_emitted_at_ms": 1794478543955,
+      "message": "Spawning agent: explorateur-code (inherit) | Task: Recon 1c surfaces et sinks"
+    },
+    "7fc9c73b15fa84c89de4fbb64b480940432eb752edf2d06315bf60e73bac1088": {
+      "last_emitted_at_ms": 1794478539016,
+      "message": "Spawning agent: explorateur-code (inherit) | Task: Recon 1b principaux et contrôles"
+    },
+    "e634d3171fb71f76f71d66a5ecbaf5a262fa6876c00afd17dcfe0f36cce77ed1": {
+      "last_emitted_at_ms": 1794478534068,
+      "message": "Spawning agent: explorateur-code (inherit) | Task: Recon 1a produit et stack"
+    }
+  },
+  "updated_at": "2026-11-12T10:24:33.806Z"
+}

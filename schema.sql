@@ -157,6 +157,11 @@ create policy items_select on public.items for select to authenticated using ((s
 create policy items_insert on public.items for insert to authenticated with check ((select public.is_active_user()));
 create policy items_update on public.items for update to authenticated using ((select public.is_active_user())) with check ((select public.is_active_user()));
 create policy items_delete on public.items for delete to authenticated using ((select public.is_admin()));
+-- items : seules les colonnes descriptives sont modifiables depuis le navigateur
+-- (status : uniquement preter_objet / rendre_objet ; qr_code : fixé à la création)
+revoke insert, update on public.items from authenticated;
+grant insert (qr_code, type, brand, model, description, storage_location, is_loanable) on public.items to authenticated;
+grant update (type, brand, model, description, storage_location, is_loanable) on public.items to authenticated;
 
 -- loans : lecture seule ; écriture via preter_objet / rendre_objet
 create policy loans_select on public.loans for select to authenticated using ((select public.is_active_user()));

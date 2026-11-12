@@ -31,6 +31,9 @@ Tables : `profiles`, `items` (status `available|loaned`), `loans` (colonne `oper
 - **Prêts** : uniquement via `preter_objet(p_item_id, p_loaned_to, p_loan_date, p_expected_return,
   p_operation, p_notes)` et `rendre_objet(p_loan_id, p_return_notes)` (verrou + index unique
   `loans_un_pret_actif`). Le statut d'un objet n'est plus modifiable à la main.
+- **Droits par colonne sur `items`** : `authenticated` ne peut modifier que `type, brand, model,
+  description, storage_location, is_loanable` (+ `qr_code` à la création). Toute nouvelle colonne
+  modifiable depuis le site doit être ajoutée au `grant` (migration `20261112_02`).
 - **Journal** : écrit par la base (trigger `journaliser` sur items, loans, item_types, profiles).
   Le client ne peut insérer que `LOGIN`, `LOGOUT`, `PASSWORD_CHANGE` ; auteur et date imposés
   (`audit_imposer_auteur`). `items.created_by*` imposés (`items_imposer_createur`).
