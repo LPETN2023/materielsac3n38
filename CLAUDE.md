@@ -37,6 +37,8 @@ Tables : `profiles`, `items` (status `available|loaned`), `loans` (colonne `oper
 - **Journal** : écrit par la base (trigger `journaliser` sur items, loans, item_types, profiles).
   Le client ne peut insérer que `LOGIN`, `LOGOUT`, `PASSWORD_CHANGE` ; auteur et date imposés
   (`audit_imposer_auteur`). `items.created_by*` imposés (`items_imposer_createur`).
+- **Anti-pause** : `maintenir_actif()` (seule fonction ouverte à `anon`, renvoie `now()`), appelée tous les 3 jours
+  par `.github/workflows/maintenir-actif.yml`. GitHub suspend les tâches planifiées après 60 jours sans commit.
 - Réglages dashboard : inscriptions publiques **désactivées**, « Confirm email » désactivé,
   Site/Redirect URL = `https://lpetn2023.github.io/materielsac3n38`.
 
